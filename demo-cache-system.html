@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistema de Cache Local</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .demo-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5a6fd8;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .texture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .texture-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            background: white;
+        }
+        
+        .texture-preview {
+            width: 100%;
+            height: 100px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .resolution-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .res-standard { background: #28a745; color: white; }
+        .res-medium { background: #ffc107; color: black; }
+        .res-high { background: #fd7e14; color: white; }
+        .res-ultra { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ Sistema de Cache Local</h1>
+            <p>Demostración del sistema de cache con IndexedDB y políticas LRU</p>
+        </div>
+        
+        <div class="content">
+            <!-- Cache Statistics -->
+            <div class="demo-section">
+                <h3>📊 Estadísticas del Cache</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="updateCacheStats()">Actualizar Estadísticas</button>
+                    <button class="btn btn-danger" onclick="clearCache()">Limpiar Cache</button>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-size">0 MB</div>
+                        <div class="stat-label">Tamaño Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="model-count">0</div>
+                        <div class="stat-label">Modelos Cacheados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="texture-count">0</div>
+                        <div class="stat-label">Texturas Cacheadas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="usage-percent">0%</div>
+                        <div class="stat-label">Uso del Cache</div>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cache-progress"></div>
+                </div>
+            </div>
+            
+            <!-- Model Caching Demo -->
+            <div class="demo-section">
+                <h3>🎯 Cache de Modelos 3D</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="cacheTestModel('musculoskeletal')">Cache Modelo Muscular</button>
+                    <button class="btn btn-primary" onclick="cacheTestModel('cardiovascular')">Cache Modelo Cardiovascular</button>
+                    <button class="btn btn-primary" onclick="cacheTestModel('nervous')">Cache Modelo Nervioso</button>
+                    <button class="btn btn-secondary" onclick="retrieveModel()">Recuperar Modelo</button>
+                </div>
+                
+                <div id="model-status"></div>
+            </div>
+            
+            <!-- Texture Progressive Loading -->
+            <div class="demo-section">
+                <h3>🖼️ Carga Progresiva de Texturas</h3>
+                <div class="controls">
+                    <label>Nivel de Zoom: <input type="range" id="zoom-slider" min="0.5" max="10" step="0.5" value="1" onchange="updateZoomLevel()"></label>
+                    <span id="zoom-value">1.0x</span>
+                    <button class="btn btn-primary" onclick="loadTextureForZoom()">Cargar Textura</button>
+                </div>
+                
+                <div class="texture-grid" id="texture-grid">
+                    <!-- Texturas se mostrarán aquí -->
+                </div>
+            </div>
+            
+            <!-- LRU Policy Demo -->
+            <div class="demo-section">
+                <h3>🔄 Política LRU (Least Recently Used)</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="simulateLRU()">Simular Uso LRU</button>
+                    <button class="btn btn-secondary" onclick="fillCache()">Llenar Cache</button>
+                    <button class="btn btn-secondary" onclick="showLRUOrder()">Mostrar Orden LRU</button>
+                </div>
+                
+                <div id="lru-status"></div>
+            </div>
+            
+            <!-- Activity Log -->
+            <div class="demo-section">
+                <h3>📝 Log de Actividad</h3>
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="clearLog()">Limpiar Log</button>
+                </div>
+                <div class="log-container" id="activity-log">
+                    <div>Sistema de cache inicializado...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import CacheManager from './src/CacheManager.js';
+        import APIManager from './src/APIManager.js';
+        
+        // Initialize cache system
+        let cacheManager;
+        let apiManager;
+        let currentZoom = 1.0;
+        
+        async function initializeDemo() {
+            try {
+                cacheManager = new CacheManager({
+                    maxStorageSize: 50 * 1024 * 1024, // 50MB for demo
+                    maxTextureSize: 5 * 1024 * 1024   // 5MB per texture
+                });
+                
+                await cacheManager.initialize();
+                
+                apiManager = new APIManager({
+                    maxCacheSize: 50 * 1024 * 1024
+                });
+                
+                await apiManager.initializeCache();
+                
+                logActivity('✅ Sistema de cache inicializado correctamente');
+                updateCacheStats();
+                
+            } catch (error) {
+                logActivity('❌ Error inicializando cache: ' + error.message);
+            }
+        }
+        
+        // Global functions for demo
+        window.updateCacheStats = async function() {
+            try {
+                const stats = await cacheManager.getCacheStats();
+                
+                document.getElementById('total-size').textContent = 
+                    (stats.totalSize / (1024 * 1024)).toFixed(2) + ' MB';
+                document.getElementById('model-count').textContent = stats.modelCount;
+                document.getElementById('texture-count').textContent = stats.textureCount;
+                document.getElementById('usage-percent').textContent = 
+                    stats.usagePercentage.toFixed(1) + '%';
+                
+                document.getElementById('cache-progress').style.width = 
+                    stats.usagePercentage + '%';
+                
+                logActivity(`📊 Estadísticas actualizadas: ${stats.modelCount} modelos, ${stats.textureCount} texturas`);
+                
+            } catch (error) {
+                logActivity('❌ Error obteniendo estadísticas: ' + error.message);
+            }
+        };
+        
+        window.clearCache = async function() {
+            try {
+                await cacheManager.clearCache();
+                logActivity('🗑️ Cache limpiado completamente');
+                updateCacheStats();
+            } catch (error) {
+                logActivity('❌ Error limpiando cache: ' + error.message);
+            }
+        };
+        
+        window.cacheTestModel = async function(systemType) {
+            try {
+                const modelId = `test_${systemType}_${Date.now()}`;
+                const mockModelData = {
+                    vertices: new Array(1000).fill(0).map(() => Math.random()),
+                    faces: new Array(500).fill(0).map(() => Math.floor(Math.random() * 1000)),
+                    metadata: {
+                        name: `Modelo ${systemType}`,
+                        system: systemType,
+                        created: new Date().toISOString()
+                    }
+                };
+                
+                await cacheManager.cacheModel(modelId, mockModelData, systemType, {
+                    name: `Modelo de prueba ${systemType}`,
+                    size: 'medium'
+                });
+                
+                logActivity(`💾 Modelo ${systemType} cacheado: ${modelId}`);
+                updateCacheStats();
+                
+            } catch (error) {
+                logActivity('❌ Error cacheando modelo: ' + error.message);
+            }
+        };
+        
+        window.retrieveModel = async function() {
+            try {
+                // Get a random cached model
+                const stats = await cacheManager.getCacheStats();
+                if (stats.modelCount === 0) {
+                    logActivity('⚠️ No hay modelos en cache para recuperar');
+                    return;
+                }
+                
+                logActivity('🔍 Recuperando modelo del cache...');
+                // This would normally retrieve a specific model
+                // For demo purposes, we'll just log the action
+                
+            } catch (error) {
+                logActivity('❌ Error recuperando modelo: ' + error.message);
+            }
+        };
+        
+        window.updateZoomLevel = function() {
+            currentZoom = parseFloat(document.getElementById('zoom-slider').value);
+            document.getElementById('zoom-value').textContent = currentZoom.toFixed(1) + 'x';
+            
+            const resolution = cacheManager.getOptimalResolution(currentZoom);
+            logActivity(`🔍 Zoom: ${currentZoom}x → Resolución óptima: ${resolution}`);
+        };
+        
+        window.loadTextureForZoom = async function() {
+            try {
+                const textureId = `texture_${Date.now()}`;
+                const resolution = cacheManager.getOptimalResolution(currentZoom);
+                
+                // Simulate texture data based on resolution
+                const sizes = { standard: 512, medium: 1024, high: 2048, ultra: 4096 };
+                const textureSize = sizes[resolution] || 512;
+                const mockTextureData = new ArrayBuffer(textureSize * textureSize * 4); // RGBA
+                
+                await cacheManager.cacheTexture(textureId, mockTextureData, 'test_model', resolution, {
+                    width: textureSize,
+                    height: textureSize,
+                    format: 'RGBA'
+                });
+                
+                // Add to texture grid
+                addTextureToGrid(textureId, resolution, textureSize);
+                
+                logActivity(`🖼️ Textura cacheada: ${textureId} (${resolution}, ${textureSize}x${textureSize})`);
+                updateCacheStats();
+                
+            } catch (error) {
+                logActivity('❌ Error cacheando textura: ' + error.message);
+            }
+        };
+        
+        function addTextureToGrid(textureId, resolution, size) {
+            const grid = document.getElementById('texture-grid');
+            const item = document.createElement('div');
+            item.className = 'texture-item';
+            item.innerHTML = `
+                <div class="texture-preview">${size}x${size}</div>
+                <div style="font-size: 12px; font-weight: bold;">${textureId.substring(0, 12)}...</div>
+                <div class="resolution-badge res-${resolution}">${resolution.toUpperCase()}</div>
+            `;
+            grid.appendChild(item);
+        }
+        
+        window.simulateLRU = async function() {
+            logActivity('🔄 Simulando política LRU...');
+            
+            // Simulate accessing different items
+            const items = ['model_1', 'model_2', 'texture_1', 'texture_2'];
+            for (let i = 0; i < items.length; i++) {
+                setTimeout(() => {
+                    logActivity(`👆 Accediendo a: ${items[i]}`);
+                }, i * 500);
+            }
+            
+            setTimeout(() => {
+                logActivity('✅ Simulación LRU completada');
+            }, items.length * 500);
+        };
+        
+        window.fillCache = async function() {
+            logActivity('📦 Llenando cache hasta el límite...');
+            
+            try {
+                for (let i = 0; i < 10; i++) {
+                    const modelId = `bulk_model_${i}`;
+                    const mockData = new ArrayBuffer(2 * 1024 * 1024); // 2MB each
+                    
+                    await cacheManager.cacheModel(modelId, mockData, 'test', {
+                        name: `Modelo masivo ${i}`,
+                        bulk: true
+                    });
+                    
+                    if (i % 3 === 0) {
+                        logActivity(`📦 Cacheado ${i + 1}/10 modelos...`);
+                    }
+                }
+                
+                logActivity('✅ Cache llenado - política LRU activada');
+                updateCacheStats();
+                
+            } catch (error) {
+                logActivity('❌ Error llenando cache: ' + error.message);
+            }
+        };
+        
+        window.showLRUOrder = function() {
+            logActivity('📋 Orden LRU (más reciente → más antiguo):');
+            logActivity('   1. texture_1647123456 (hace 2 min)');
+            logActivity('   2. model_cardiovascular (hace 5 min)');
+            logActivity('   3. model_musculoskeletal (hace 8 min)');
+            logActivity('   4. texture_1647123123 (hace 12 min)');
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('activity-log').innerHTML = 
+                '<div>Log limpiado - Sistema de cache activo...</div>';
+        };
+        
+        function logActivity(message) {
+            const log = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.innerHTML = `[${timestamp}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Initialize demo when page loads
+        initializeDemo();
+    </script>
+</body>
+</html>

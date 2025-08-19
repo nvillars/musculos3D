@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Optimization Demo - Anatomical 3D Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .performance-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-width: 200px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .control-group select,
+        .control-group input,
+        .control-group button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .control-group button {
+            background: #4CAF50;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .control-group button:hover {
+            background: #45a049;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .performance-chart {
+            width: 100%;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            background: #4CAF50;
+            transition: height 0.3s ease;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Performance Optimization Demo</h2>
+            
+            <div class="section">
+                <h3>Quality Settings</h3>
+                <div class="control-group">
+                    <label for="qualityLevel">Quality Level:</label>
+                    <select id="qualityLevel">
+                        <option value="low">Low (Mobile)</option>
+                        <option value="medium">Medium</option>
+                        <option value="high" selected>High (Desktop)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button id="autoQualityBtn">Enable Auto Quality</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>LOD System</h3>
+                <div class="control-group">
+                    <button id="enableLODBtn">Enable LOD System</button>
+                    <button id="disableLODBtn">Disable LOD System</button>
+                </div>
+                <div class="control-group">
+                    <label for="lodDistance">LOD Distance:</label>
+                    <input type="range" id="lodDistance" min="10" max="200" value="50">
+                    <span id="lodDistanceValue">50</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Optimizations</h3>
+                <div class="control-group">
+                    <button id="frustumCullingBtn">Toggle Frustum Culling</button>
+                    <button id="textureCompressionBtn">Apply Texture Compression</button>
+                    <button id="optimizeSceneBtn">Optimize Scene</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Device Info</h3>
+                <div id="deviceInfo">
+                    <div class="stat-item">
+                        <div class="stat-label">Device Type</div>
+                        <div class="stat-value" id="deviceType">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Memory</div>
+                        <div class="stat-value" id="deviceMemory">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">CPU Cores</div>
+                        <div class="stat-value" id="deviceCores">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Max Texture Size</div>
+                        <div class="stat-value" id="maxTextureSize">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Texture Compression Support</h3>
+                <div id="compressionSupport">
+                    <div class="stat-item">
+                        <div class="stat-label">S3TC</div>
+                        <div class="stat-value" id="s3tcSupport">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">ETC1</div>
+                        <div class="stat-value" id="etc1Support">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">ASTC</div>
+                        <div class="stat-value" id="astcSupport">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">PVRTC</div>
+                        <div class="stat-value" id="pvrtcSupport">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+            
+            <div class="performance-overlay">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="fpsCounter">60</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="qualityDisplay">High</div>
+                        <div class="stat-label">Quality</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="memoryUsage">0</div>
+                        <div class="stat-label">Memory (MB)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="lodCount">0</div>
+                        <div class="stat-label">LOD Objects</div>
+                    </div>
+                </div>
+                
+                <div class="performance-chart" id="fpsChart">
+                    <!-- FPS chart bars will be added here -->
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Loading anatomical model...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import AnatomicalRenderer from './src/AnatomicalRenderer.js';
+
+        class PerformanceDemo {
+            constructor() {
+                this.renderer = null;
+                this.autoQualityEnabled = false;
+                this.frustumCullingEnabled = true;
+                this.fpsHistory = [];
+                this.maxFpsHistory = 60;
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Initialize the renderer
+                    const canvas = document.getElementById('canvas');
+                    this.renderer = new AnatomicalRenderer(canvas, {
+                        antialias: true,
+                        enableInteractions: true
+                    });
+
+                    // Wait for initialization
+                    await this.waitForInitialization();
+
+                    // Load a test model
+                    await this.loadTestModel();
+
+                    // Setup UI event handlers
+                    this.setupEventHandlers();
+
+                    // Start performance monitoring
+                    this.startPerformanceMonitoring();
+
+                    // Update device info
+                    this.updateDeviceInfo();
+
+                    // Hide loading screen
+                    document.getElementById('loading').style.display = 'none';
+
+                } catch (error) {
+                    console.error('Failed to initialize performance demo:', error);
+                    document.getElementById('loading').innerHTML = 
+                        '<div style="color: #ff6b6b;">Failed to load demo</div>';
+                }
+            }
+
+            async waitForInitialization() {
+                return new Promise((resolve) => {
+                    const checkInit = () => {
+                        if (this.renderer && this.renderer.isInitialized) {
+                            resolve();
+                        } else {
+                            setTimeout(checkInit, 100);
+                        }
+                    };
+                    checkInit();
+                });
+            }
+
+            async loadTestModel() {
+                try {
+                    // Create a test scene with multiple objects for performance testing
+                    await this.createTestScene();
+                } catch (error) {
+                    console.warn('Could not load test model, using procedural geometry:', error);
+                    this.createProceduralTestScene();
+                }
+            }
+
+            createProceduralTestScene() {
+                // Create multiple test objects to demonstrate performance optimizations
+                const scene = this.renderer.scene;
+                
+                for (let i = 0; i < 50; i++) {
+                    const geometry = new THREE.BoxGeometry(
+                        Math.random() * 2 + 0.5,
+                        Math.random() * 2 + 0.5,
+                        Math.random() * 2 + 0.5
+                    );
+                    
+                    const material = this.renderer.createPBRMaterial({
+                        color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
+                        metalness: Math.random() * 0.5,
+                        roughness: Math.random() * 0.5 + 0.3
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20
+                    );
+                    mesh.rotation.set(
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI
+                    );
+                    
+                    mesh.name = `testObject_${i}`;
+                    scene.add(mesh);
+                    
+                    // Make objects selectable
+                    this.renderer.addSelectableObjects(mesh);
+                }
+                
+                console.log('Created procedural test scene with 50 objects');
+            }
+
+            async createTestScene() {
+                // This would load actual anatomical models in a real scenario
+                // For demo purposes, we'll create procedural geometry
+                this.createProceduralTestScene();
+            }
+
+            setupEventHandlers() {
+                // Quality level control
+                document.getElementById('qualityLevel').addEventListener('change', (e) => {
+                    this.renderer.setQualityLevel(e.target.value);
+                    this.updateQualityDisplay();
+                });
+
+                // Auto quality toggle
+                document.getElementById('autoQualityBtn').addEventListener('click', () => {
+                    this.autoQualityEnabled = !this.autoQualityEnabled;
+                    const btn = document.getElementById('autoQualityBtn');
+                    btn.textContent = this.autoQualityEnabled ? 'Disable Auto Quality' : 'Enable Auto Quality';
+                    btn.style.background = this.autoQualityEnabled ? '#ff6b6b' : '#4CAF50';
+                });
+
+                // LOD controls
+                document.getElementById('enableLODBtn').addEventListener('click', () => {
+                    this.renderer.optimizeScene();
+                    console.log('LOD system enabled for all objects');
+                });
+
+                document.getElementById('disableLODBtn').addEventListener('click', () => {
+                    // This would disable LOD in a real implementation
+                    console.log('LOD system disabled');
+                });
+
+                // LOD distance control
+                const lodDistanceSlider = document.getElementById('lodDistance');
+                const lodDistanceValue = document.getElementById('lodDistanceValue');
+                
+                lodDistanceSlider.addEventListener('input', (e) => {
+                    const distance = e.target.value;
+                    lodDistanceValue.textContent = distance;
+                    // Update LOD distances in performance manager
+                    if (this.renderer.performanceManager) {
+                        this.renderer.performanceManager.lodDistances = [
+                            distance * 0.5,
+                            distance,
+                            distance * 2
+                        ];
+                    }
+                });
+
+                // Optimization controls
+                document.getElementById('frustumCullingBtn').addEventListener('click', () => {
+                    this.frustumCullingEnabled = !this.frustumCullingEnabled;
+                    const btn = document.getElementById('frustumCullingBtn');
+                    btn.textContent = this.frustumCullingEnabled ? 'Disable Frustum Culling' : 'Enable Frustum Culling';
+                    btn.style.background = this.frustumCullingEnabled ? '#ff6b6b' : '#4CAF50';
+                });
+
+                document.getElementById('textureCompressionBtn').addEventListener('click', () => {
+                    // Apply texture compression to all materials
+                    this.renderer.scene.traverse((object) => {
+                        if (object.material && object.material.map) {
+                            this.renderer.optimizeTexture(object.material.map, { forceCompression: true });
+                        }
+                    });
+                    console.log('Texture compression applied to all materials');
+                });
+
+                document.getElementById('optimizeSceneBtn').addEventListener('click', () => {
+                    const results = this.renderer.optimizeScene();
+                    console.log('Scene optimization results:', results);
+                });
+            }
+
+            startPerformanceMonitoring() {
+                setInterval(() => {
+                    this.updatePerformanceStats();
+                    this.updateFpsChart();
+                }, 1000);
+            }
+
+            updatePerformanceStats() {
+                const stats = this.renderer.getPerformanceStats();
+                if (!stats) return;
+
+                // Update FPS
+                document.getElementById('fpsCounter').textContent = stats.fps;
+                
+                // Update quality display
+                document.getElementById('qualityDisplay').textContent = 
+                    stats.qualityLevel.charAt(0).toUpperCase() + stats.qualityLevel.slice(1);
+                
+                // Update memory usage
+                if (stats.memoryUsage) {
+                    document.getElementById('memoryUsage').textContent = stats.memoryUsage.used;
+                }
+                
+                // Update LOD count
+                document.getElementById('lodCount').textContent = stats.lodObjectsCount;
+
+                // Store FPS history for chart
+                this.fpsHistory.push(stats.fps);
+                if (this.fpsHistory.length > this.maxFpsHistory) {
+                    this.fpsHistory.shift();
+                }
+            }
+
+            updateFpsChart() {
+                const chart = document.getElementById('fpsChart');
+                chart.innerHTML = ''; // Clear previous bars
+
+                const maxFps = Math.max(...this.fpsHistory, 60);
+                const barWidth = chart.clientWidth / this.maxFpsHistory;
+
+                this.fpsHistory.forEach((fps, index) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'chart-line';
+                    bar.style.left = `${index * barWidth}px`;
+                    bar.style.height = `${(fps / maxFps) * 100}%`;
+                    bar.style.width = `${barWidth - 1}px`;
+                    
+                    // Color code based on FPS
+                    if (fps >= 50) {
+                        bar.style.background = '#4CAF50'; // Green
+                    } else if (fps >= 30) {
+                        bar.style.background = '#FFC107'; // Yellow
+                    } else {
+                        bar.style.background = '#F44336'; // Red
+                    }
+                    
+                    chart.appendChild(bar);
+                });
+            }
+
+            updateDeviceInfo() {
+                const capabilities = this.renderer.getDeviceCapabilities();
+                const compressionSupport = this.renderer.getTextureCompressionSupport();
+                
+                if (capabilities) {
+                    document.getElementById('deviceType').textContent = 
+                        capabilities.isMobile ? 'Mobile' : 'Desktop';
+                    document.getElementById('deviceMemory').textContent = 
+                        `${capabilities.memory} GB`;
+                    document.getElementById('deviceCores').textContent = 
+                        capabilities.cores;
+                    document.getElementById('maxTextureSize').textContent = 
+                        `${capabilities.maxTextureSize}px`;
+                }
+
+                if (compressionSupport) {
+                    document.getElementById('s3tcSupport').textContent = 
+                        compressionSupport.s3tc ? '✓' : '✗';
+                    document.getElementById('etc1Support').textContent = 
+                        compressionSupport.etc1 ? '✓' : '✗';
+                    document.getElementById('astcSupport').textContent = 
+                        compressionSupport.astc ? '✓' : '✗';
+                    document.getElementById('pvrtcSupport').textContent = 
+                        compressionSupport.pvrtc ? '✓' : '✗';
+                }
+            }
+
+            updateQualityDisplay() {
+                const quality = this.renderer.getQualityLevel();
+                document.getElementById('qualityDisplay').textContent = 
+                    quality.charAt(0).toUpperCase() + quality.slice(1);
+            }
+        }
+
+        // Start the demo
+        new PerformanceDemo();
+    </script>
+</body>
+</html>

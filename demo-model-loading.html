@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistema de Carga de Modelos 3D</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 30px;
+        }
+        
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f7fafc;
+        }
+        
+        .demo-section h3 {
+            margin-top: 0;
+            color: #2d3748;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .status.info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .feature-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature-item h4 {
+            margin: 0 0 10px 0;
+            color: #4a5568;
+        }
+        
+        .feature-item p {
+            margin: 0;
+            color: #718096;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧬 Sistema de Carga de Modelos 3D Anatómicos</h1>
+        
+        <div class="demo-section">
+            <h3>📋 Características Implementadas</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>🔧 GLTFLoader 2.0</h4>
+                    <p>Carga de modelos glTF con soporte para compresión Draco</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📁 Gestión de Assets</h4>
+                    <p>Rutas configurables para modelos y recursos</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📊 Indicadores de Progreso</h4>
+                    <p>Barras de progreso visuales y personalizables</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🛡️ Manejo de Errores</h4>
+                    <p>Sistema robusto con reintentos y recuperación</p>
+                </div>
+                <div class="feature-item">
+                    <h4>💾 Sistema de Cache</h4>
+                    <p>Cache inteligente con política LRU</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🧪 Suite de Tests</h4>
+                    <p>Tests unitarios y de integración completos</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>🎮 Demostración Interactiva</h3>
+            <p>Prueba las diferentes funcionalidades del sistema de carga:</p>
+            
+            <button class="button" onclick="demoProgressIndicator()">
+                📊 Mostrar Indicador de Progreso
+            </button>
+            
+            <button class="button" onclick="demoErrorHandling()">
+                ⚠️ Simular Error de Carga
+            </button>
+            
+            <button class="button" onclick="demoAssetResolution()">
+                📁 Probar Resolución de Rutas
+            </button>
+            
+            <button class="button" onclick="demoCacheSystem()">
+                💾 Demostrar Sistema de Cache
+            </button>
+            
+            <button class="button" onclick="clearLog()">
+                🗑️ Limpiar Log
+            </button>
+            
+            <div id="status"></div>
+            <div id="log" class="log"></div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>📖 Requisitos Cumplidos</h3>
+            <div class="status success">
+                ✅ Requisito 1.1: Carga de modelos 3D completos del cuerpo humano
+            </div>
+            <div class="status success">
+                ✅ Requisito 1.2: Texturas de alta resolución (hasta 4K)
+            </div>
+            <div class="status success">
+                ✅ Requisito 4.3: Manejo de errores para modelos corruptos o no encontrados
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import ModelLoader from './src/ModelLoader.js';
+        import ProgressIndicator from './src/ProgressIndicator.js';
+        
+        // Initialize components
+        let progressIndicator = null;
+        let modelLoader = null;
+        
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // Update status
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${type}`;
+            statusElement.textContent = message;
+        }
+        
+        function initializeComponents() {
+            if (!progressIndicator) {
+                progressIndicator = new ProgressIndicator({
+                    containerId: 'demo-progress',
+                    showLabel: true,
+                    showPercentage: true,
+                    barColor: '#667eea'
+                });
+                log('ProgressIndicator inicializado', 'success');
+            }
+            
+            if (!modelLoader) {
+                modelLoader = new ModelLoader({
+                    basePath: '/assets/models/',
+                    enableCache: true,
+                    retryAttempts: 3,
+                    maxCacheSize: 50 * 1024 * 1024 // 50MB
+                });
+                log('ModelLoader inicializado', 'success');
+            }
+        }
+        
+        window.demoProgressIndicator = async function() {
+            initializeComponents();
+            
+            log('Iniciando demostración de indicador de progreso...', 'info');
+            
+            progressIndicator.show('Cargando modelo anatómico...');
+            
+            for (let i = 0; i <= 100; i += 5) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                progressIndicator.updateProgress(i, `Descargando: ${i}%`);
+                
+                if (i === 50) {
+                    log('Progreso: 50% - Mitad del proceso completado', 'info');
+                }
+            }
+            
+            log('Demostración de progreso completada', 'success');
+        };
+        
+        window.demoErrorHandling = async function() {
+            initializeComponents();
+            
+            log('Iniciando demostración de manejo de errores...', 'info');
+            
+            progressIndicator.show('Intentando cargar modelo inexistente...');
+            
+            try {
+                // Simular intento de carga de modelo inexistente
+                await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        reject(new Error('404 - Modelo no encontrado'));
+                    }, 2000);
+                });
+            } catch (error) {
+                log(`Error capturado: ${error.message}`, 'error');
+                progressIndicator.setError('Error al cargar el modelo');
+            }
+        };
+        
+        window.demoAssetResolution = function() {
+            initializeComponents();
+            
+            log('Demostrando resolución de rutas de assets...', 'info');
+            
+            const testPaths = [
+                'heart.glb',
+                '/absolute/path/brain.glb',
+                'https://api.example.com/models/skeleton.glb',
+                'organs/liver.glb'
+            ];
+            
+            testPaths.forEach(path => {
+                const resolved = modelLoader.resolveAssetPath(path);
+                log(`"${path}" → "${resolved}"`, 'info');
+            });
+            
+            log('Resolución de rutas completada', 'success');
+        };
+        
+        window.demoCacheSystem = function() {
+            initializeComponents();
+            
+            log('Demostrando sistema de cache...', 'info');
+            
+            const stats = modelLoader.getCacheStats();
+            log(`Modelos en cache: ${stats.cachedModels}`, 'info');
+            log(`Tamaño de cache: ${Math.round(stats.cacheSize / 1024)}KB`, 'info');
+            log(`Uso de cache: ${stats.cacheUsage.toFixed(1)}%`, 'info');
+            log(`Límite máximo: ${Math.round(stats.maxCacheSize / 1024 / 1024)}MB`, 'info');
+            
+            // Simular limpieza de cache
+            modelLoader.clearCache();
+            log('Cache limpiado', 'success');
+            
+            const newStats = modelLoader.getCacheStats();
+            log(`Nuevo estado - Modelos: ${newStats.cachedModels}, Tamaño: ${newStats.cacheSize}KB`, 'success');
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('status').textContent = '';
+            log('Log limpiado', 'info');
+        };
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Demo del Sistema de Carga de Modelos 3D iniciado', 'success');
+            log('Haz clic en los botones para probar las funcionalidades', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Completo - Anatomical 3D Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .workflow-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .workflow-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .workflow-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .workflow-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .content-area {
+            flex: 1;
+            position: relative;
+        }
+        
+        #anatomical-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #bdc3c7;
+            transition: background 0.3s ease;
+        }
+        
+        .status-indicator.active {
+            background: #27ae60;
+        }
+        
+        .status-indicator.error {
+            background: #e74c3c;
+        }
+        
+        .status-indicator.loading {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+        
+        .workflow-step {
+            padding: 10px;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            border-left: 3px solid #bdc3c7;
+            transition: all 0.3s ease;
+        }
+        
+        .workflow-step.completed {
+            border-left-color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+        }
+        
+        .workflow-step.active {
+            border-left-color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+        }
+        
+        .workflow-step.error {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .step-description {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            line-height: 1.4;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .metric-item {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .metric-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+        
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-entry.success {
+            color: #2ecc71;
+        }
+        
+        .log-entry.error {
+            color: #e74c3c;
+        }
+        
+        .log-entry.warning {
+            color: #f39c12;
+        }
+        
+        .log-entry.info {
+            color: #3498db;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.2rem;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .loading-progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.95);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+            max-width: 400px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 300px;
+                order: 2;
+            }
+            
+            .content-area {
+                height: calc(100vh - 400px);
+                order: 1;
+            }
+            
+            .header {
+                padding: 10px 15px;
+            }
+            
+            .title {
+                font-size: 1.2rem;
+            }
+            
+            .workflow-controls {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">🧬 Demo Completo - Anatomical 3D Viewer</h1>
+        <div class="workflow-controls">
+            <button class="workflow-btn" id="start-workflow">▶️ Iniciar Demo</button>
+            <button class="workflow-btn" id="reset-workflow">🔄 Reiniciar</button>
+            <button class="workflow-btn" id="export-data">📊 Exportar Datos</button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <!-- Application Status -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="status-indicator" id="app-status"></div>
+                    Estado de la Aplicación
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value" id="init-time">--</div>
+                        <div class="metric-label">Tiempo Init (ms)</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="memory-usage">--</div>
+                        <div class="metric-label">Memoria (MB)</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="loaded-models">0</div>
+                        <div class="metric-label">Modelos Cargados</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="error-count">0</div>
+                        <div class="metric-label">Errores</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Workflow Steps -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="status-indicator" id="workflow-status"></div>
+                    Flujo de Trabajo
+                </div>
+                <div id="workflow-steps">
+                    <div class="workflow-step" data-step="init">
+                        <div class="step-title">1. Inicialización</div>
+                        <div class="step-description">Configurar componentes y verificar compatibilidad</div>
+                    </div>
+                    <div class="workflow-step" data-step="load-system">
+                        <div class="step-title">2. Cargar Sistema</div>
+                        <div class="step-description">Cargar sistema musculoesquelético</div>
+                    </div>
+                    <div class="workflow-step" data-step="search">
+                        <div class="step-title">3. Búsqueda</div>
+                        <div class="step-description">Buscar estructura "femur"</div>
+                    </div>
+                    <div class="workflow-step" data-step="select">
+                        <div class="step-title">4. Selección</div>
+                        <div class="step-description">Seleccionar y resaltar estructura</div>
+                    </div>
+                    <div class="workflow-step" data-step="manipulate">
+                        <div class="step-title">5. Manipulación</div>
+                        <div class="step-description">Aislar y ocultar estructuras</div>
+                    </div>
+                    <div class="workflow-step" data-step="zoom">
+                        <div class="step-title">6. Zoom Profundo</div>
+                        <div class="step-description">Probar zoom y texturas HD</div>
+                    </div>
+                    <div class="workflow-step" data-step="multi-system">
+                        <div class="step-title">7. Múltiples Sistemas</div>
+                        <div class="step-description">Cargar sistema cardiovascular</div>
+                    </div>
+                    <div class="workflow-step" data-step="performance">
+                        <div class="step-title">8. Rendimiento</div>
+                        <div class="step-description">Verificar métricas de rendimiento</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Metrics -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="status-indicator" id="performance-status"></div>
+                    Métricas de Rendimiento
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value" id="fps-counter">--</div>
+                        <div class="metric-label">FPS</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="load-time">--</div>
+                        <div class="metric-label">Tiempo Carga (ms)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Activity Log -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="status-indicator active" id="log-status"></div>
+                    Log de Actividad
+                </div>
+                <div class="log-container" id="activity-log">
+                    <div class="log-entry info">Sistema iniciado - Esperando demo...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-area">
+            <canvas id="anatomical-canvas"></canvas>
+            
+            <!-- Loading overlay -->
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <div id="loading-text">Inicializando visor 3D...</div>
+                    <div class="loading-progress-container">
+                        <div class="loading-progress-bar" id="loading-progress"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error message -->
+            <div class="error-message" id="error-message">
+                <h3>Error</h3>
+                <p id="error-text"></p>
+                <button onclick="this.parentElement.style.display='none'" style="margin-top: 10px; padding: 5px 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 3px; cursor: pointer;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import AnatomicalApp from './src/AnatomicalApp.js';
+        
+        class WorkflowDemo {
+            constructor() {
+                this.app = null;
+                this.currentStep = 0;
+                this.isRunning = false;
+                this.startTime = 0;
+                this.metrics = {
+                    initTime: 0,
+                    loadTime: 0,
+                    searchTime: 0,
+                    memoryUsage: 0,
+                    fps: 0,
+                    errorCount: 0
+                };
+                
+                this.steps = [
+                    { id: 'init', name: 'Inicialización', method: 'initializeApp' },
+                    { id: 'load-system', name: 'Cargar Sistema', method: 'loadSystem' },
+                    { id: 'search', name: 'Búsqueda', method: 'searchStructure' },
+                    { id: 'select', name: 'Selección', method: 'selectStructure' },
+                    { id: 'manipulate', name: 'Manipulación', method: 'manipulateStructures' },
+                    { id: 'zoom', name: 'Zoom Profundo', method: 'testZoom' },
+                    { id: 'multi-system', name: 'Múltiples Sistemas', method: 'loadMultipleSystems' },
+                    { id: 'performance', name: 'Rendimiento', method: 'checkPerformance' }
+                ];
+                
+                this.setupEventHandlers();
+                this.startPerformanceMonitoring();
+            }
+            
+            setupEventHandlers() {
+                document.getElementById('start-workflow').addEventListener('click', () => {
+                    this.startWorkflow();
+                });
+                
+                document.getElementById('reset-workflow').addEventListener('click', () => {
+                    this.resetWorkflow();
+                });
+                
+                document.getElementById('export-data').addEventListener('click', () => {
+                    this.exportData();
+                });
+            }
+            
+            async startWorkflow() {
+                if (this.isRunning) return;
+                
+                this.isRunning = true;
+                this.startTime = performance.now();
+                this.currentStep = 0;
+                
+                this.log('🚀 Iniciando demo completo del workflow...', 'info');
+                this.updateWorkflowStatus('loading');
+                
+                document.getElementById('start-workflow').disabled = true;
+                
+                try {
+                    for (let i = 0; i < this.steps.length; i++) {
+                        this.currentStep = i;
+                        const step = this.steps[i];
+                        
+                        this.log(`📋 Ejecutando paso ${i + 1}: ${step.name}`, 'info');
+                        this.updateStepStatus(step.id, 'active');
+                        
+                        await this[step.method]();
+                        
+                        this.updateStepStatus(step.id, 'completed');
+                        this.log(`✅ Completado: ${step.name}`, 'success');
+                        
+                        // Pausa entre pasos para visualización
+                        await this.delay(1000);
+                    }
+                    
+                    this.log('🎉 Demo completo finalizado exitosamente!', 'success');
+                    this.updateWorkflowStatus('active');
+                    
+                } catch (error) {
+                    this.log(`❌ Error en paso ${this.currentStep + 1}: ${error.message}`, 'error');
+                    this.updateStepStatus(this.steps[this.currentStep].id, 'error');
+                    this.updateWorkflowStatus('error');
+                    this.showError(error.message);
+                } finally {
+                    this.isRunning = false;
+                    document.getElementById('start-workflow').disabled = false;
+                }
+            }
+            
+            async initializeApp() {
+                this.log('🔧 Inicializando aplicación...', 'info');
+                
+                const initStart = performance.now();
+                
+                this.app = new AnatomicalApp({
+                    enablePerformanceMonitoring: true,
+                    enableOfflineMode: true,
+                    maxCacheSize: 500 * 1024 * 1024
+                });
+                
+                // Esperar inicialización
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout de inicialización'));
+                    }, 30000);
+                    
+                    const checkInit = () => {
+                        if (this.app.isInitialized) {
+                            clearTimeout(timeout);
+                            resolve();
+                        } else if (this.app.getStatus().errorCount > 0) {
+                            clearTimeout(timeout);
+                            reject(new Error('Error durante inicialización'));
+                        } else {
+                            setTimeout(checkInit, 100);
+                        }
+                    };
+                    checkInit();
+                });
+                
+                this.metrics.initTime = performance.now() - initStart;
+                this.updateMetrics();
+                this.updateAppStatus('active');
+                
+                this.log(`⚡ Aplicación inicializada en ${this.metrics.initTime.toFixed(2)}ms`, 'success');
+            }
+            
+            async loadSystem() {
+                this.log('📚 Cargando sistema musculoesquelético...', 'info');
+                
+                const loadStart = performance.now();
+                
+                await this.app.loadAnatomicalSystem('musculoskeletal');
+                
+                this.metrics.loadTime = performance.now() - loadStart;
+                this.updateMetrics();
+                
+                this.log(`🦴 Sistema cargado en ${this.metrics.loadTime.toFixed(2)}ms`, 'success');
+            }
+            
+            async searchStructure() {
+                this.log('🔍 Buscando estructura "femur"...', 'info');
+                
+                const searchStart = performance.now();
+                
+                await this.app.searchStructures('femur');
+                
+                this.metrics.searchTime = performance.now() - searchStart;
+                
+                this.log(`🎯 Búsqueda completada en ${this.metrics.searchTime.toFixed(2)}ms`, 'success');
+            }
+            
+            async selectStructure() {
+                this.log('👆 Simulando selección de estructura...', 'info');
+                
+                // Simular selección de objeto
+                const mockObject = {
+                    name: 'femur',
+                    userData: {
+                        structureType: 'bone',
+                        systemId: 'musculoskeletal'
+                    },
+                    material: {
+                        emissive: { setHex: () => {} }
+                    }
+                };
+                
+                const mockIntersection = {
+                    point: { x: 0, y: 0, z: 0 }
+                };
+                
+                this.app.handleStructureSelection(mockObject, mockIntersection);
+                
+                this.log('✨ Estructura seleccionada y resaltada', 'success');
+            }
+            
+            async manipulateStructures() {
+                this.log('🎭 Probando manipulación de estructuras...', 'info');
+                
+                // Aislar estructura
+                if (this.app.selectedStructure) {
+                    await this.app.anatomyManager.isolateStructure(this.app.selectedStructure.name);
+                    this.log('🎯 Estructura aislada', 'success');
+                    
+                    await this.delay(1500);
+                    
+                    // Mostrar todo de nuevo
+                    await this.app.anatomyManager.showAllStructures();
+                    this.log('👁️ Todas las estructuras mostradas', 'success');
+                }
+            }
+            
+            async testZoom() {
+                this.log('🔍 Probando zoom profundo...', 'info');
+                
+                // Simular cambio de zoom
+                this.app.handleControlsChange({
+                    distance: 2.0,
+                    target: { x: 0, y: 0, z: 0 }
+                });
+                
+                this.log('🔬 Zoom profundo activado', 'success');
+                
+                await this.delay(1000);
+                
+                // Cargar texturas de alta resolución
+                if (this.app.currentSystem) {
+                    await this.app.loadHighResTextures(this.app.currentSystem);
+                    this.log('📸 Texturas HD cargadas', 'success');
+                }
+            }
+            
+            async loadMultipleSystems() {
+                this.log('🫀 Cargando sistema cardiovascular...', 'info');
+                
+                await this.app.loadAnatomicalSystem('cardiovascular');
+                
+                this.log('❤️ Sistema cardiovascular cargado', 'success');
+                this.log(`📊 Total de sistemas cargados: ${this.app.loadedModels.size}`, 'info');
+            }
+            
+            async checkPerformance() {
+                this.log('📊 Verificando métricas de rendimiento...', 'info');
+                
+                const status = this.app.getStatus();
+                const debugData = this.app.exportDebugData();
+                
+                this.log(`🎯 Modelos cargados: ${status.loadedModels.length}`, 'info');
+                this.log(`⚡ Tiempo total: ${(performance.now() - this.startTime).toFixed(2)}ms`, 'info');
+                this.log(`💾 Uso de memoria: ${this.metrics.memoryUsage}MB`, 'info');
+                this.log(`🚫 Errores: ${status.errorCount}`, status.errorCount > 0 ? 'warning' : 'success');
+                
+                this.updatePerformanceStatus(status.errorCount === 0 ? 'active' : 'error');
+            }
+            
+            resetWorkflow() {
+                this.log('🔄 Reiniciando demo...', 'info');
+                
+                if (this.app) {
+                    this.app.destroy();
+                    this.app = null;
+                }
+                
+                this.currentStep = 0;
+                this.isRunning = false;
+                this.metrics = {
+                    initTime: 0,
+                    loadTime: 0,
+                    searchTime: 0,
+                    memoryUsage: 0,
+                    fps: 0,
+                    errorCount: 0
+                };
+                
+                // Reset UI
+                this.steps.forEach(step => {
+                    this.updateStepStatus(step.id, '');
+                });
+                
+                this.updateAppStatus('');
+                this.updateWorkflowStatus('');
+                this.updatePerformanceStatus('');
+                this.updateMetrics();
+                
+                document.getElementById('start-workflow').disabled = false;
+                
+                this.log('✅ Demo reiniciado', 'success');
+            }
+            
+            exportData() {
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    metrics: this.metrics,
+                    workflow: {
+                        currentStep: this.currentStep,
+                        isRunning: this.isRunning,
+                        totalTime: performance.now() - this.startTime
+                    },
+                    app: this.app ? this.app.exportDebugData() : null
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+                    type: 'application/json' 
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `anatomical-demo-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                this.log('📁 Datos exportados exitosamente', 'success');
+            }
+            
+            startPerformanceMonitoring() {
+                setInterval(() => {
+                    if (this.app && this.app.isInitialized) {
+                        const status = this.app.getStatus();
+                        this.metrics.memoryUsage = status.performanceMetrics.memoryUsage || 0;
+                        this.metrics.fps = status.performanceMetrics.fps || 0;
+                        this.metrics.errorCount = status.errorCount || 0;
+                        
+                        this.updateMetrics();
+                    }
+                }, 1000);
+            }
+            
+            updateMetrics() {
+                document.getElementById('init-time').textContent = 
+                    this.metrics.initTime ? this.metrics.initTime.toFixed(0) : '--';
+                document.getElementById('memory-usage').textContent = 
+                    this.metrics.memoryUsage ? this.metrics.memoryUsage.toFixed(0) : '--';
+                document.getElementById('loaded-models').textContent = 
+                    this.app ? this.app.loadedModels.size : '0';
+                document.getElementById('error-count').textContent = 
+                    this.metrics.errorCount.toString();
+                document.getElementById('fps-counter').textContent = 
+                    this.metrics.fps ? this.metrics.fps.toString() : '--';
+                document.getElementById('load-time').textContent = 
+                    this.metrics.loadTime ? this.metrics.loadTime.toFixed(0) : '--';
+            }
+            
+            updateStepStatus(stepId, status) {
+                const step = document.querySelector(`[data-step="${stepId}"]`);
+                if (step) {
+                    step.className = `workflow-step ${status}`;
+                }
+            }
+            
+            updateAppStatus(status) {
+                const indicator = document.getElementById('app-status');
+                indicator.className = `status-indicator ${status}`;
+            }
+            
+            updateWorkflowStatus(status) {
+                const indicator = document.getElementById('workflow-status');
+                indicator.className = `status-indicator ${status}`;
+            }
+            
+            updatePerformanceStatus(status) {
+                const indicator = document.getElementById('performance-status');
+                indicator.className = `status-indicator ${status}`;
+            }
+            
+            log(message, type = 'info') {
+                const logContainer = document.getElementById('activity-log');
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+                
+                // Mantener solo los últimos 50 logs
+                while (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.firstChild);
+                }
+                
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+            
+            showError(message) {
+                const errorDiv = document.getElementById('error-message');
+                const errorText = document.getElementById('error-text');
+                
+                errorText.textContent = message;
+                errorDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        // Inicializar demo
+        const demo = new WorkflowDemo();
+        
+        // Hacer disponible globalmente para debugging
+        window.workflowDemo = demo;
+        
+        console.log('🎬 Demo completo inicializado');
+        console.log('👆 Haz clic en "Iniciar Demo" para comenzar');
+    </script>
+</body>
+</html>

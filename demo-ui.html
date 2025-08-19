@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Manager Demo - Anatomical 3D Viewer</title>
+    <link rel="stylesheet" href="src/styles/ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #2c3e50;
+        }
+        
+        .demo-info {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-info">
+        Demo de Interfaz de Usuario - Visor Anatómico 3D
+    </div>
+    
+    <div id="canvas-container">
+        <!-- El UIManager creará automáticamente el contenedor ui-container -->
+    </div>
+
+    <script type="module">
+        // Mock AnatomyManager para la demo
+        class MockAnatomyManager {
+            getAvailableSystems() {
+                return [
+                    { id: 'musculoskeletal', name: 'Sistema Musculoesquelético' },
+                    { id: 'cardiovascular', name: 'Sistema Cardiovascular' },
+                    { id: 'nervous', name: 'Sistema Nervioso' },
+                    { id: 'respiratory', name: 'Sistema Respiratorio' },
+                    { id: 'digestive', name: 'Sistema Digestivo' },
+                    { id: 'urogenital', name: 'Sistema Urogenital' },
+                    { id: 'lymphatic', name: 'Sistema Linfático' }
+                ];
+            }
+            
+            loadSystem(systemId) {
+                console.log('Loading system:', systemId);
+                // Simular evento de cambio de sistema
+                document.dispatchEvent(new CustomEvent('systemChanged', {
+                    detail: { systemId }
+                }));
+            }
+            
+            searchStructure(query) {
+                const structures = [
+                    { id: 'biceps', name: 'Bíceps Braquial', system: 'musculoskeletal' },
+                    { id: 'triceps', name: 'Tríceps Braquial', system: 'musculoskeletal' },
+                    { id: 'heart', name: 'Corazón', system: 'cardiovascular' },
+                    { id: 'aorta', name: 'Aorta', system: 'cardiovascular' },
+                    { id: 'brain', name: 'Cerebro', system: 'nervous' },
+                    { id: 'spinal_cord', name: 'Médula Espinal', system: 'nervous' },
+                    { id: 'lungs', name: 'Pulmones', system: 'respiratory' },
+                    { id: 'trachea', name: 'Tráquea', system: 'respiratory' }
+                ];
+                
+                return structures.filter(s => 
+                    s.name.toLowerCase().includes(query.toLowerCase())
+                );
+            }
+            
+            getStructureInfo(structureId) {
+                const structures = {
+                    biceps: {
+                        id: 'biceps',
+                        name: 'Bíceps Braquial',
+                        system: 'musculoskeletal',
+                        metadata: {
+                            description: 'Músculo flexor del brazo anterior',
+                            origin: 'Proceso coracoides de la escápula y tubérculo supraglenoideo',
+                            insertion: 'Tuberosidad del radio'
+                        }
+                    },
+                    heart: {
+                        id: 'heart',
+                        name: 'Corazón',
+                        system: 'cardiovascular',
+                        metadata: {
+                            description: 'Órgano muscular que bombea sangre por todo el cuerpo',
+                            origin: 'Mediastino medio',
+                            insertion: 'N/A'
+                        }
+                    },
+                    brain: {
+                        id: 'brain',
+                        name: 'Cerebro',
+                        system: 'nervous',
+                        metadata: {
+                            description: 'Órgano principal del sistema nervioso central',
+                            origin: 'Cavidad craneal',
+                            insertion: 'N/A'
+                        }
+                    }
+                };
+                
+                return structures[structureId] || {
+                    id: structureId,
+                    name: structureId.charAt(0).toUpperCase() + structureId.slice(1),
+                    system: 'unknown',
+                    metadata: {
+                        description: 'Información no disponible'
+                    }
+                };
+            }
+        }
+        
+        // Mock Renderer para la demo
+        class MockRenderer {
+            highlightStructure(structureId) {
+                console.log('Highlighting structure:', structureId);
+            }
+            
+            isolateStructure(structureId) {
+                console.log('Isolating structure:', structureId);
+            }
+            
+            hideStructure(structureId) {
+                console.log('Hiding structure:', structureId);
+            }
+            
+            resetCamera() {
+                console.log('Resetting camera view');
+            }
+        }
+        
+        // Importar UIManager
+        import UIManager from './src/UIManager.js';
+        
+        // Inicializar la demo
+        document.addEventListener('DOMContentLoaded', () => {
+            const mockAnatomyManager = new MockAnatomyManager();
+            const mockRenderer = new MockRenderer();
+            
+            // Crear UIManager
+            const uiManager = new UIManager(mockAnatomyManager, mockRenderer);
+            
+            // Hacer disponible globalmente para los botones
+            window.uiManager = uiManager;
+            
+            console.log('UI Manager Demo initialized');
+            
+            // Simular selección de estructura después de 3 segundos
+            setTimeout(() => {
+                document.dispatchEvent(new CustomEvent('structureSelected', {
+                    detail: mockAnatomyManager.getStructureInfo('biceps')
+                }));
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

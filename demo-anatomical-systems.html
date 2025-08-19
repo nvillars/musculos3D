@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistemas Anatómicos Interactivos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+        
+        #anatomical-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .demo-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .system-selector {
+            margin-bottom: 30px;
+        }
+        
+        .system-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+        
+        .system-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .system-button.active {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+        
+        .system-icon {
+            font-size: 1.2rem;
+            margin-right: 10px;
+        }
+        
+        .controls-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-button {
+            padding: 8px 15px;
+            margin: 5px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+        
+        .control-button:hover {
+            background: #2980b9;
+        }
+        
+        .control-button.danger {
+            background: #e74c3c;
+        }
+        
+        .control-button.danger:hover {
+            background: #c0392b;
+        }
+        
+        .control-button.success {
+            background: #27ae60;
+        }
+        
+        .control-button.success:hover {
+            background: #229954;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .search-result {
+            padding: 10px;
+            border-bottom: 1px solid #ecf0f1;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .search-result:hover {
+            background: #f8f9fa;
+        }
+        
+        .search-result:last-child {
+            border-bottom: none;
+        }
+        
+        .info-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .info-content {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            line-height: 1.4;
+        }
+        
+        .performance-info {
+            background: #2c3e50;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.2rem;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .loading-progress-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.95);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .demo-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 300px;
+                order: 2;
+            }
+            
+            .main-content {
+                height: calc(100vh - 300px);
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="sidebar">
+            <h1 class="demo-title">🧬 Sistemas Anatómicos</h1>
+            
+            <!-- System Selector -->
+            <div class="system-selector">
+                <div class="section-title">Seleccionar Sistema</div>
+                <button class="system-button" data-system="musculoskeletal">
+                    <span class="system-icon">🦴</span>
+                    Sistema Musculoesquelético
+                </button>
+                <button class="system-button" data-system="cardiovascular">
+                    <span class="system-icon">❤️</span>
+                    Sistema Cardiovascular
+                </button>
+                <button class="system-button" data-system="nervous">
+                    <span class="system-icon">🧠</span>
+                    Sistema Nervioso
+                </button>
+                <button class="system-button" data-system="respiratory">
+                    <span class="system-icon">🫁</span>
+                    Sistema Respiratorio
+                </button>
+                <button class="system-button" data-system="digestive">
+                    <span class="system-icon">🫃</span>
+                    Sistema Digestivo
+                </button>
+                <button class="system-button" data-system="urogenital">
+                    <span class="system-icon">🫘</span>
+                    Sistema Urogenital
+                </button>
+            </div>
+            
+            <!-- Search -->
+            <div class="controls-section">
+                <div class="section-title">Buscar Estructura</div>
+                <input type="text" class="search-box" id="structure-search" placeholder="Buscar estructura anatómica...">
+                <div class="search-results" id="search-results"></div>
+            </div>
+            
+            <!-- Structure Controls -->
+            <div class="controls-section">
+                <div class="section-title">Controles de Estructura</div>
+                <div class="control-group">
+                    <button class="control-button" id="isolate-btn">Aislar Seleccionada</button>
+                    <button class="control-button danger" id="hide-btn">Ocultar</button>
+                    <button class="control-button success" id="show-all-btn">Mostrar Todo</button>
+                </div>
+                <div class="control-group">
+                    <button class="control-button" id="highlight-btn">Resaltar</button>
+                    <button class="control-button" id="reset-materials-btn">Resetear Materiales</button>
+                </div>
+            </div>
+            
+            <!-- Layer Controls -->
+            <div class="controls-section">
+                <div class="section-title">Control de Capas</div>
+                <div class="control-group">
+                    <button class="control-button" id="layer-skin-btn">Piel</button>
+                    <button class="control-button" id="layer-muscle-btn">Músculos</button>
+                    <button class="control-button" id="layer-bone-btn">Huesos</button>
+                </div>
+            </div>
+            
+            <!-- Structure Info -->
+            <div class="info-panel" id="structure-info" style="display: none;">
+                <div class="info-title">Información de Estructura</div>
+                <div class="info-content" id="structure-details">
+                    Selecciona una estructura para ver información
+                </div>
+            </div>
+            
+            <!-- Performance Info -->
+            <div class="performance-info" id="performance-info">
+                FPS: -- | Memoria: -- MB | Modelos: --
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <canvas id="anatomical-canvas"></canvas>
+            
+            <!-- Loading overlay -->
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <div id="loading-text">Inicializando visor 3D...</div>
+                    <div class="loading-progress-container">
+                        <div class="loading-progress-bar" id="loading-progress"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error message -->
+            <div class="error-message" id="error-message">
+                <h3>Error</h3>
+                <p id="error-text"></p>
+            </div>
+            
+            <!-- Tooltip -->
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import AnatomicalApp from './src/AnatomicalApp.js';
+        
+        // Initialize the application
+        let app = null;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('🚀 Starting Anatomical Systems Demo...');
+                
+                app = new AnatomicalApp({
+                    enablePerformanceMonitoring: true,
+                    enableOfflineMode: true,
+                    enableProgressiveLoading: true
+                });
+                
+                // Wait for initialization
+                await waitForInitialization();
+                
+                // Setup demo UI handlers
+                setupDemoHandlers();
+                
+                console.log('✅ Demo initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Demo initialization failed:', error);
+                showError('Error al inicializar el demo: ' + error.message);
+            }
+        });
+        
+        /**
+         * Wait for app initialization
+         */
+        async function waitForInitialization() {
+            return new Promise((resolve, reject) => {
+                const checkInit = () => {
+                    if (app && app.isInitialized) {
+                        resolve();
+                    } else if (app && app.getStatus().errorCount > 0) {
+                        reject(new Error('Initialization failed'));
+                    } else {
+                        setTimeout(checkInit, 100);
+                    }
+                };
+                checkInit();
+            });
+        }
+        
+        /**
+         * Setup demo UI handlers
+         */
+        function setupDemoHandlers() {
+            // System selection buttons
+            document.querySelectorAll('.system-button').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const systemId = button.dataset.system;
+                    
+                    // Update active button
+                    document.querySelectorAll('.system-button').forEach(btn => 
+                        btn.classList.remove('active'));
+                    button.classList.add('active');
+                    
+                    // Load system
+                    try {
+                        await app.loadAnatomicalSystem(systemId);
+                        console.log('✅ System loaded:', systemId);
+                    } catch (error) {
+                        console.error('❌ Failed to load system:', error);
+                        showError('Error al cargar sistema: ' + error.message);
+                    }
+                });
+            });
+            
+            // Search functionality
+            const searchBox = document.getElementById('structure-search');
+            const searchResults = document.getElementById('search-results');
+            
+            searchBox.addEventListener('input', async (e) => {
+                const query = e.target.value.trim();
+                
+                if (query.length < 2) {
+                    searchResults.innerHTML = '';
+                    return;
+                }
+                
+                try {
+                    await app.searchStructures(query);
+                } catch (error) {
+                    console.error('Search failed:', error);
+                }
+            });
+            
+            // Structure control buttons
+            document.getElementById('isolate-btn').addEventListener('click', () => {
+                if (app.selectedStructure) {
+                    app.anatomyManager.isolateStructure(app.selectedStructure.name);
+                } else {
+                    alert('Selecciona una estructura primero');
+                }
+            });
+            
+            document.getElementById('hide-btn').addEventListener('click', () => {
+                if (app.selectedStructure) {
+                    app.anatomyManager.hideStructure(app.selectedStructure.name);
+                } else {
+                    alert('Selecciona una estructura primero');
+                }
+            });
+            
+            document.getElementById('show-all-btn').addEventListener('click', () => {
+                app.anatomyManager.showAllStructures();
+            });
+            
+            document.getElementById('highlight-btn').addEventListener('click', () => {
+                if (app.selectedStructure) {
+                    app.anatomyManager.highlightStructure(app.selectedStructure.name, 0xffff00);
+                } else {
+                    alert('Selecciona una estructura primero');
+                }
+            });
+            
+            document.getElementById('reset-materials-btn').addEventListener('click', () => {
+                app.anatomyManager.resetAllMaterials();
+            });
+            
+            // Layer control buttons
+            document.getElementById('layer-skin-btn').addEventListener('click', () => {
+                toggleLayer('skin');
+            });
+            
+            document.getElementById('layer-muscle-btn').addEventListener('click', () => {
+                toggleLayer('muscle');
+            });
+            
+            document.getElementById('layer-bone-btn').addEventListener('click', () => {
+                toggleLayer('bone');
+            });
+            
+            // Setup app event listeners
+            setupAppEventListeners();
+        }
+        
+        /**
+         * Toggle layer visibility
+         */
+        function toggleLayer(layerName) {
+            const button = document.getElementById(`layer-${layerName}-btn`);
+            const isVisible = !button.classList.contains('active');
+            
+            app.anatomyManager.setLayerVisibility(layerName, isVisible);
+            
+            if (isVisible) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        }
+        
+        /**
+         * Setup application event listeners
+         */
+        function setupAppEventListeners() {
+            // Structure selection
+            app.renderer.onObjectSelect((object, intersection) => {
+                showStructureInfo({
+                    name: object.name,
+                    type: object.userData.structureType || 'unknown',
+                    system: object.userData.systemId || app.currentSystem,
+                    position: intersection.point
+                });
+            });
+            
+            // Structure hover
+            app.renderer.onObjectHover((object) => {
+                showTooltip(object.name, {
+                    type: object.userData.structureType,
+                    system: object.userData.systemId
+                });
+            });
+            
+            // Structure unhover
+            app.renderer.onObjectUnhover(() => {
+                hideTooltip();
+            });
+            
+            // Performance updates
+            if (app.performanceManager) {
+                setInterval(() => {
+                    updatePerformanceInfo();
+                }, 1000);
+            }
+        }
+        
+        /**
+         * Show structure information
+         */
+        function showStructureInfo(info) {
+            const panel = document.getElementById('structure-info');
+            const details = document.getElementById('structure-details');
+            
+            details.innerHTML = `
+                <strong>Nombre:</strong> ${info.name}<br>
+                <strong>Tipo:</strong> ${info.type}<br>
+                <strong>Sistema:</strong> ${info.system}<br>
+                <strong>Posición:</strong> (${info.position.x.toFixed(2)}, ${info.position.y.toFixed(2)}, ${info.position.z.toFixed(2)})
+            `;
+            
+            panel.style.display = 'block';
+        }
+        
+        /**
+         * Show tooltip
+         */
+        function showTooltip(name, info) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `${name} (${info.type})`;
+            tooltip.style.display = 'block';
+            
+            // Position tooltip near mouse
+            document.addEventListener('mousemove', positionTooltip);
+        }
+        
+        /**
+         * Hide tooltip
+         */
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.display = 'none';
+            document.removeEventListener('mousemove', positionTooltip);
+        }
+        
+        /**
+         * Position tooltip near mouse
+         */
+        function positionTooltip(e) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.left = (e.clientX + 10) + 'px';
+            tooltip.style.top = (e.clientY - 30) + 'px';
+        }
+        
+        /**
+         * Update performance information
+         */
+        function updatePerformanceInfo() {
+            if (!app) return;
+            
+            const status = app.getStatus();
+            const performanceInfo = document.getElementById('performance-info');
+            
+            performanceInfo.innerHTML = `
+                FPS: ${status.performanceMetrics.fps || '--'} | 
+                Memoria: ${status.performanceMetrics.memoryUsage || '--'} MB | 
+                Modelos: ${status.loadedModels.length}
+            `;
+        }
+        
+        /**
+         * Show error message
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            
+            errorText.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Export for debugging
+        window.anatomicalApp = app;
+        window.showError = showError;
+    </script>
+</body>
+</html>

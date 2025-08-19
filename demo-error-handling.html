@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistema de Manejo de Errores</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .demo-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .demo-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .log-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .compatibility-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.supported {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.not-supported {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Demo - Sistema de Manejo de Errores</h1>
+        <p>Esta demo muestra las capacidades del sistema robusto de manejo de errores implementado para el visor anatómico 3D.</p>
+
+        <div class="demo-section">
+            <h3>Compatibilidad WebGL</h3>
+            <button onclick="checkCompatibility()">Verificar Compatibilidad WebGL</button>
+            <div id="compatibility-output" class="compatibility-info"></div>
+        </div>
+
+        <div class="demo-section">
+            <h3>Simulación de Errores</h3>
+            <button onclick="simulateAPIError()">Simular Error de API</button>
+            <button onclick="simulateMemoryError()">Simular Error de Memoria</button>
+            <button onclick="simulateNetworkError()">Simular Error de Red</button>
+            <button onclick="simulateWebGLError()">Simular Error WebGL</button>
+            <button onclick="simulateJSError()" class="danger">Simular Error JavaScript</button>
+        </div>
+
+        <div class="demo-section">
+            <h3>Recuperación Automática</h3>
+            <button onclick="testAPIRecovery()">Probar Recuperación de API</button>
+            <button onclick="testRetryMechanism()">Probar Mecanismo de Reintentos</button>
+        </div>
+
+        <div class="demo-section">
+            <h3>Monitoreo de Rendimiento</h3>
+            <button onclick="simulatePerformanceIssue()">Simular Problema de Rendimiento</button>
+            <button onclick="checkMemoryUsage()">Verificar Uso de Memoria</button>
+        </div>
+
+        <div class="demo-section">
+            <h3>Gestión de Log</h3>
+            <button onclick="showErrorLog()">Mostrar Log de Errores</button>
+            <button onclick="exportErrorLog()">Exportar Log</button>
+            <button onclick="clearErrorLog()">Limpiar Log</button>
+            <div id="log-output" class="log-output"></div>
+        </div>
+
+        <div class="demo-section">
+            <h3>Mensajes de Usuario</h3>
+            <button onclick="showUserMessage('api_failure')">Mensaje Error API</button>
+            <button onclick="showUserMessage('memory_error')">Mensaje Error Memoria</button>
+            <button onclick="showUserMessage('webgl_error')">Mensaje Error WebGL</button>
+            <button onclick="showCustomMessage()">Mensaje Personalizado</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import ErrorHandler
+        import ErrorHandler from './src/ErrorHandler.js';
+
+        // Initialize ErrorHandler
+        window.errorHandler = new ErrorHandler();
+
+        // Demo functions
+        window.checkCompatibility = function() {
+            const compatibility = window.errorHandler.checkWebGLCompatibility();
+            const output = document.getElementById('compatibility-output');
+            
+            let html = '<h4>Información de Compatibilidad:</h4>';
+            html += `<p>WebGL 1.0: <span class="status ${compatibility.webgl ? 'supported' : 'not-supported'}">${compatibility.webgl ? 'Soportado' : 'No Soportado'}</span></p>`;
+            html += `<p>WebGL 2.0: <span class="status ${compatibility.webgl2 ? 'supported' : 'not-supported'}">${compatibility.webgl2 ? 'Soportado' : 'No Soportado'}</span></p>`;
+            html += `<p>Tamaño máximo de textura: ${compatibility.maxTextureSize}px</p>`;
+            html += `<p>Renderer: ${compatibility.renderer}</p>`;
+            
+            html += '<h5>Extensiones:</h5>';
+            for (const [ext, supported] of Object.entries(compatibility.extensions)) {
+                html += `<p>${ext}: <span class="status ${supported ? 'supported' : 'not-supported'}">${supported ? 'Sí' : 'No'}</span></p>`;
+            }
+            
+            output.innerHTML = html;
+        };
+
+        window.simulateAPIError = function() {
+            const error = new Error('API endpoint not responding');
+            window.errorHandler.logError(error, {
+                type: 'api_failure',
+                endpoint: 'https://api.example.com/models',
+                modelId: 'heart_model_v2'
+            });
+            console.log('Error de API simulado y registrado');
+        };
+
+        window.simulateMemoryError = function() {
+            const error = new Error('Out of memory allocating texture buffer');
+            window.errorHandler.handleRenderingError(error, {
+                component: 'TextureLoader',
+                textureSize: '4096x4096'
+            });
+            console.log('Error de memoria simulado');
+        };
+
+        window.simulateNetworkError = function() {
+            const error = new Error('Network connection timeout');
+            window.errorHandler.logError(error, {
+                type: 'network_error',
+                url: 'https://cdn.example.com/models/skeleton.glb',
+                timeout: 10000
+            });
+            console.log('Error de red simulado');
+        };
+
+        window.simulateWebGLError = function() {
+            window.errorHandler.handleWebGLContextLoss();
+            console.log('Pérdida de contexto WebGL simulada');
+        };
+
+        window.simulateJSError = function() {
+            // This will trigger the global error handler
+            setTimeout(() => {
+                throw new Error('Uncaught JavaScript error for testing');
+            }, 100);
+        };
+
+        window.testAPIRecovery = async function() {
+            console.log('Probando recuperación automática de API...');
+            
+            const result = await window.errorHandler.handleAPIFailure(
+                'test-api',
+                () => {
+                    console.log('Ejecutando acción de fallback');
+                    return { success: true, source: 'fallback' };
+                },
+                {
+                    retryAction: async () => {
+                        console.log('Intentando recuperación...');
+                        // Simular fallo en primer intento
+                        if (Math.random() > 0.7) {
+                            return { success: true, source: 'retry' };
+                        }
+                        throw new Error('Retry failed');
+                    }
+                }
+            );
+            
+            console.log('Resultado de recuperación:', result);
+        };
+
+        window.testRetryMechanism = async function() {
+            console.log('Probando mecanismo de reintentos...');
+            
+            let attempts = 0;
+            const result = await window.errorHandler.handleAPIFailure(
+                'retry-test',
+                () => ({ success: true, source: 'fallback', attempts }),
+                {
+                    retryAction: async () => {
+                        attempts++;
+                        console.log(`Intento ${attempts}`);
+                        if (attempts < 2) {
+                            throw new Error(`Attempt ${attempts} failed`);
+                        }
+                        return { success: true, source: 'retry', attempts };
+                    }
+                }
+            );
+            
+            console.log('Resultado final:', result);
+        };
+
+        window.simulatePerformanceIssue = function() {
+            const metrics = {
+                fps: 15, // FPS bajo
+                frameTime: 66.7,
+                memory: {
+                    used: 180000000,
+                    total: 200000000,
+                    percentage: 90
+                }
+            };
+            
+            window.errorHandler.reportPerformanceIssue(metrics);
+            console.log('Problema de rendimiento reportado');
+        };
+
+        window.checkMemoryUsage = function() {
+            const memoryInfo = window.errorHandler.getMemoryUsage();
+            console.log('Información de memoria:', memoryInfo);
+            
+            const output = document.getElementById('log-output');
+            output.innerHTML = '<h4>Uso de Memoria:</h4><pre>' + JSON.stringify(memoryInfo, null, 2) + '</pre>';
+        };
+
+        window.showErrorLog = function() {
+            const log = window.errorHandler.getErrorLog(10);
+            const output = document.getElementById('log-output');
+            
+            if (log.length === 0) {
+                output.innerHTML = '<p>No hay errores registrados.</p>';
+                return;
+            }
+            
+            let html = '<h4>Últimos Errores:</h4>';
+            log.forEach((entry, index) => {
+                html += `<div style="margin-bottom: 10px; padding: 5px; border-left: 3px solid #dc3545;">`;
+                html += `<strong>${entry.timestamp}</strong> - ${entry.type}<br>`;
+                html += `<em>${entry.message}</em><br>`;
+                if (entry.context && Object.keys(entry.context).length > 0) {
+                    html += `<small>Contexto: ${JSON.stringify(entry.context)}</small>`;
+                }
+                html += `</div>`;
+            });
+            
+            output.innerHTML = html;
+        };
+
+        window.exportErrorLog = function() {
+            const exportedLog = window.errorHandler.exportErrorLog();
+            const blob = new Blob([exportedLog], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `error-log-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('Log de errores exportado');
+        };
+
+        window.clearErrorLog = function() {
+            window.errorHandler.clearErrorLog();
+            document.getElementById('log-output').innerHTML = '<p>Log de errores limpiado.</p>';
+            console.log('Log de errores limpiado');
+        };
+
+        window.showUserMessage = function(errorType) {
+            window.errorHandler.showUserMessage(errorType);
+        };
+
+        window.showCustomMessage = function() {
+            window.errorHandler.showUserMessage('custom', 'Este es un mensaje personalizado de prueba.');
+        };
+
+        // Setup performance monitoring demo
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        function monitorDemo() {
+            frameCount++;
+            const currentTime = performance.now();
+            
+            if (currentTime - lastTime >= 5000) { // Every 5 seconds
+                const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                console.log(`Demo FPS: ${fps}`);
+                
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            
+            requestAnimationFrame(monitorDemo);
+        }
+        
+        requestAnimationFrame(monitorDemo);
+
+        console.log('Demo de ErrorHandler inicializado correctamente');
+        console.log('ErrorHandler disponible en window.errorHandler');
+    </script>
+</body>
+</html>

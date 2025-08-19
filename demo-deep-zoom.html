@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Zoom Functionality Demo - Anatomical 3D Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 300px;
+            z-index: 1000;
+        }
+
+        .controls-panel h3 {
+            margin: 0 0 15px 0;
+            color: #4fc3f7;
+            font-size: 18px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+        }
+
+        .zoom-level-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .toggle-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 250px;
+            z-index: 1000;
+        }
+
+        .info-panel h4 {
+            margin: 0 0 10px 0;
+            color: #4fc3f7;
+            font-size: 16px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .info-item span:first-child {
+            color: #ccc;
+        }
+
+        .info-item span:last-child {
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .status-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+        }
+
+        .status-panel h4 {
+            margin: 0 0 10px 0;
+            color: #4fc3f7;
+            font-size: 14px;
+        }
+
+        .status-item {
+            font-size: 12px;
+            margin-bottom: 3px;
+            color: #ccc;
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 2000;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #4fc3f7;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .instructions h4 {
+            margin: 0 0 10px 0;
+            color: #4fc3f7;
+            font-size: 14px;
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 15px;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .controls-panel,
+            .info-panel,
+            .instructions {
+                position: relative;
+                margin: 10px;
+                width: auto;
+            }
+
+            #container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <div class="controls-panel">
+            <h3>🔍 Deep Zoom Controls</h3>
+            
+            <div class="control-group">
+                <label>Zoom Levels:</label>
+                <div class="zoom-level-buttons">
+                    <button id="zoom-level-0">Far (Low)</button>
+                    <button id="zoom-level-1">Medium</button>
+                    <button id="zoom-level-2">Close (High)</button>
+                    <button id="zoom-level-3">Ultra Close</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Features:</label>
+                <div class="toggle-buttons">
+                    <button id="toggle-labels" class="active">Labels</button>
+                    <button id="toggle-orientation" class="active">Compass</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Actions:</label>
+                <div class="control-row">
+                    <button id="clear-cache">Clear Cache</button>
+                    <button id="load-model">Load Model</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h4>📊 Zoom Information</h4>
+            <div class="info-item">
+                <span>Current Level:</span>
+                <span id="current-level">0</span>
+            </div>
+            <div class="info-item">
+                <span>Target Level:</span>
+                <span id="target-level">0</span>
+            </div>
+            <div class="info-item">
+                <span>Camera Distance:</span>
+                <span id="camera-distance">0</span>
+            </div>
+            <div class="info-item">
+                <span>Texture Quality:</span>
+                <span id="texture-quality">low</span>
+            </div>
+            <div class="info-item">
+                <span>Transitioning:</span>
+                <span id="is-transitioning">No</span>
+            </div>
+            <div class="info-item">
+                <span>Cached Textures:</span>
+                <span id="cached-textures">0</span>
+            </div>
+            <div class="info-item">
+                <span>Active Labels:</span>
+                <span id="active-labels">0</span>
+            </div>
+        </div>
+        
+        <div class="status-panel">
+            <h4>🎮 System Status</h4>
+            <div class="status-item" id="fps-counter">FPS: 60</div>
+            <div class="status-item" id="render-calls">Render Calls: 0</div>
+            <div class="status-item" id="triangles">Triangles: 0</div>
+            <div class="status-item" id="memory-usage">Memory: 0MB</div>
+        </div>
+        
+        <div class="instructions">
+            <h4>🎯 Instructions</h4>
+            <ul>
+                <li><strong>Mouse:</strong> Drag to rotate, scroll to zoom</li>
+                <li><strong>Touch:</strong> Drag to rotate, pinch to zoom</li>
+                <li><strong>Zoom Levels:</strong> Click buttons to jump to specific levels</li>
+                <li><strong>Labels:</strong> Show/hide contextual structure labels</li>
+                <li><strong>Compass:</strong> Toggle spatial orientation indicators</li>
+                <li><strong>Auto Zoom:</strong> Zoom triggers automatic texture loading</li>
+            </ul>
+        </div>
+        
+        <div id="loading-indicator" class="loading-indicator" style="display: none;">
+            <div class="spinner"></div>
+            <div>Loading high-resolution textures...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import AnatomicalRenderer from './src/AnatomicalRenderer.js';
+
+        class DeepZoomDemo {
+            constructor() {
+                this.renderer = null;
+                this.zoomManager = null;
+                this.updateInterval = null;
+                this.isLoading = false;
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Initialize renderer
+                    const canvas = document.getElementById('canvas');
+                    this.renderer = new AnatomicalRenderer(canvas, {
+                        antialias: true,
+                        enableInteractions: true
+                    });
+
+                    // Get zoom manager
+                    this.zoomManager = this.renderer.getZoomManager();
+
+                    // Setup event listeners
+                    this.setupEventListeners();
+
+                    // Load a demo model
+                    await this.loadDemoModel();
+
+                    // Start update loop
+                    this.startUpdateLoop();
+
+                    console.log('Deep zoom demo initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize deep zoom demo:', error);
+                    this.showError('Failed to initialize 3D viewer. Please check console for details.');
+                }
+            }
+
+            async loadDemoModel() {
+                this.showLoading(true);
+                
+                try {
+                    // Try to load a demo model (this would be replaced with actual model paths)
+                    // For now, create a simple demo scene with geometric shapes representing structures
+                    this.createDemoScene();
+                    
+                    console.log('Demo scene created');
+                } catch (error) {
+                    console.error('Failed to load demo model:', error);
+                    this.createFallbackScene();
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            createDemoScene() {
+                // Create several geometric shapes to represent anatomical structures
+                const structures = [
+                    { name: 'Heart', color: 0xff6b6b, position: [0, 0, 0], size: 1 },
+                    { name: 'Liver', color: 0x8b4513, position: [2, -0.5, 0], size: 1.2 },
+                    { name: 'Lungs_Left', color: 0xffa726, position: [-1.5, 0.5, 0], size: 0.8 },
+                    { name: 'Lungs_Right', color: 0xffa726, position: [1.5, 0.5, 0], size: 0.8 },
+                    { name: 'Kidney_Left', color: 0x7b1fa2, position: [-1, -1.5, 0], size: 0.6 },
+                    { name: 'Kidney_Right', color: 0x7b1fa2, position: [1, -1.5, 0], size: 0.6 },
+                    { name: 'Stomach', color: 0x4caf50, position: [-0.5, -0.8, 0], size: 0.9 }
+                ];
+
+                structures.forEach(struct => {
+                    const geometry = new THREE.SphereGeometry(struct.size, 32, 32);
+                    const material = new THREE.MeshStandardMaterial({
+                        color: struct.color,
+                        metalness: 0.1,
+                        roughness: 0.8
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(...struct.position);
+                    mesh.name = struct.name;
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    
+                    this.renderer.scene.add(mesh);
+                    
+                    // Make structures selectable
+                    this.renderer.addSelectableObjects(mesh);
+                });
+
+                // Add a ground plane
+                const groundGeometry = new THREE.PlaneGeometry(10, 10);
+                const groundMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x333333,
+                    metalness: 0.0,
+                    roughness: 1.0
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.y = -3;
+                ground.receiveShadow = true;
+                this.renderer.scene.add(ground);
+            }
+
+            createFallbackScene() {
+                // Create a simple fallback scene
+                const geometry = new THREE.BoxGeometry(2, 2, 2);
+                const material = new THREE.MeshStandardMaterial({ color: 0x4fc3f7 });
+                const cube = new THREE.Mesh(geometry, material);
+                cube.name = 'Demo_Structure';
+                this.renderer.scene.add(cube);
+                this.renderer.addSelectableObjects(cube);
+            }
+
+            setupEventListeners() {
+                // Zoom level buttons
+                for (let i = 0; i < 4; i++) {
+                    const button = document.getElementById(`zoom-level-${i}`);
+                    if (button) {
+                        button.addEventListener('click', () => {
+                            this.setZoomLevel(i);
+                            this.updateZoomLevelButtons(i);
+                        });
+                    }
+                }
+
+                // Toggle buttons
+                document.getElementById('toggle-labels')?.addEventListener('click', (e) => {
+                    const enabled = !e.target.classList.contains('active');
+                    this.renderer.setLabelsEnabled(enabled);
+                    e.target.classList.toggle('active', enabled);
+                });
+
+                document.getElementById('toggle-orientation')?.addEventListener('click', (e) => {
+                    const enabled = !e.target.classList.contains('active');
+                    this.renderer.setOrientationIndicatorsEnabled(enabled);
+                    e.target.classList.toggle('active', enabled);
+                });
+
+                // Action buttons
+                document.getElementById('clear-cache')?.addEventListener('click', () => {
+                    this.renderer.clearZoomTextureCache();
+                    this.showNotification('Texture cache cleared');
+                });
+
+                document.getElementById('load-model')?.addEventListener('click', () => {
+                    this.loadDemoModel();
+                });
+
+                // Zoom transition complete callback
+                if (this.zoomManager) {
+                    this.zoomManager.onTransitionComplete((level, config) => {
+                        console.log(`Zoom transition complete: Level ${level} (${config.textureQuality})`);
+                        this.updateZoomLevelButtons(level);
+                    });
+                }
+
+                // Object selection callback
+                this.renderer.onObjectSelect((object, intersection) => {
+                    console.log('Selected object:', object.name);
+                    this.showNotification(`Selected: ${object.name}`);
+                });
+            }
+
+            setZoomLevel(level) {
+                if (this.renderer) {
+                    this.renderer.setZoomLevel(level);
+                }
+            }
+
+            updateZoomLevelButtons(activeLevel) {
+                for (let i = 0; i < 4; i++) {
+                    const button = document.getElementById(`zoom-level-${i}`);
+                    if (button) {
+                        button.classList.toggle('active', i === activeLevel);
+                    }
+                }
+            }
+
+            startUpdateLoop() {
+                this.updateInterval = setInterval(() => {
+                    this.updateUI();
+                }, 100); // Update UI 10 times per second
+            }
+
+            updateUI() {
+                // Update zoom information
+                const zoomInfo = this.renderer.getCurrentZoomInfo();
+                if (zoomInfo) {
+                    document.getElementById('current-level').textContent = zoomInfo.level;
+                    document.getElementById('target-level').textContent = zoomInfo.targetLevel;
+                    document.getElementById('camera-distance').textContent = zoomInfo.distance.toFixed(1);
+                    document.getElementById('texture-quality').textContent = zoomInfo.config?.textureQuality || 'unknown';
+                    document.getElementById('is-transitioning').textContent = zoomInfo.isTransitioning ? 'Yes' : 'No';
+                }
+
+                // Update texture cache stats
+                const cacheStats = this.renderer.getZoomTextureCacheStats();
+                if (cacheStats) {
+                    document.getElementById('cached-textures').textContent = cacheStats.cachedTextures;
+                    document.getElementById('active-labels').textContent = cacheStats.activeLabels;
+                }
+
+                // Update performance stats
+                const fps = this.renderer.getFPS();
+                const rendererInfo = this.renderer.getRendererInfo();
+                
+                document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                
+                if (rendererInfo) {
+                    document.getElementById('render-calls').textContent = `Render Calls: ${rendererInfo.calls}`;
+                    document.getElementById('triangles').textContent = `Triangles: ${rendererInfo.triangles.toLocaleString()}`;
+                    
+                    const memoryMB = ((rendererInfo.geometries + rendererInfo.textures) * 1024 / 1024).toFixed(1);
+                    document.getElementById('memory-usage').textContent = `Memory: ${memoryMB}MB`;
+                }
+            }
+
+            showLoading(show) {
+                const indicator = document.getElementById('loading-indicator');
+                if (indicator) {
+                    indicator.style.display = show ? 'block' : 'none';
+                }
+                this.isLoading = show;
+            }
+
+            showNotification(message) {
+                // Simple notification system
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(76, 195, 247, 0.9);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 5px;
+                    z-index: 3000;
+                    font-size: 14px;
+                    pointer-events: none;
+                `;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 2000);
+            }
+
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(244, 67, 54, 0.9);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    z-index: 3000;
+                    max-width: 400px;
+                    text-align: center;
+                `;
+                errorDiv.innerHTML = `
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                    <button onclick="this.parentElement.remove()" style="margin-top: 10px;">Close</button>
+                `;
+                document.body.appendChild(errorDiv);
+            }
+
+            dispose() {
+                if (this.updateInterval) {
+                    clearInterval(this.updateInterval);
+                }
+                if (this.renderer) {
+                    // Renderer cleanup would go here
+                }
+            }
+        }
+
+        // Initialize demo when page loads
+        window.addEventListener('load', () => {
+            new DeepZoomDemo();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (window.demo) {
+                window.demo.dispose();
+            }
+        });
+    </script>
+</body>
+</html>

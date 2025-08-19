@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Integración de APIs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .model-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        select, input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .api-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .api-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .api-card.online { border-color: #28a745; background: #f8fff9; }
+        .api-card.offline { border-color: #dc3545; background: #fff8f8; }
+        .cache-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f1f3f4;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Demo - Sistema de APIs Externas</h1>
+        <p>Demostración del sistema de integración con APIs externas de modelos anatómicos</p>
+
+        <div class="controls">
+            <h3>Controles de Prueba</h3>
+            <div>
+                <label>Sistema Anatómico:</label>
+                <select id="systemSelect">
+                    <option value="musculoskeletal">Musculoesquelético</option>
+                    <option value="cardiovascular">Cardiovascular</option>
+                    <option value="nervous">Nervioso</option>
+                    <option value="respiratory">Respiratorio</option>
+                </select>
+            </div>
+            <div>
+                <label>Modelo:</label>
+                <input type="text" id="modelInput" placeholder="Ej: heart, brain, skeleton" value="heart">
+            </div>
+            <div>
+                <label>Calidad:</label>
+                <select id="qualitySelect">
+                    <option value="low">Baja</option>
+                    <option value="medium" selected>Media</option>
+                    <option value="high">Alta</option>
+                    <option value="ultra">Ultra</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="fetchModel()">Obtener Modelo</button>
+                <button onclick="checkAPIs()">Verificar APIs</button>
+                <button onclick="clearCache()">Limpiar Cache</button>
+                <button onclick="getCacheInfo()">Info Cache</button>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div class="api-status" id="apiStatus">
+            <h3 style="grid-column: 1 / -1;">Estado de APIs</h3>
+        </div>
+
+        <div class="cache-info" id="cacheInfo" style="display: none;">
+            <h3>Información del Cache</h3>
+            <div id="cacheDetails"></div>
+        </div>
+
+        <div id="modelInfo" class="model-info" style="display: none;">
+            <h3>Información del Modelo</h3>
+            <div id="modelDetails"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import APIManager from './src/APIManager.js';
+
+        let apiManager;
+
+        // Inicializar APIManager
+        async function initializeAPIManager() {
+            try {
+                apiManager = new APIManager();
+                showStatus('APIManager inicializado correctamente', 'success');
+                await checkAPIs();
+            } catch (error) {
+                showStatus(`Error inicializando APIManager: ${error.message}`, 'error');
+            }
+        }
+
+        // Obtener modelo
+        window.fetchModel = async function() {
+            if (!apiManager) {
+                showStatus('APIManager no inicializado', 'error');
+                return;
+            }
+
+            const system = document.getElementById('systemSelect').value;
+            const modelName = document.getElementById('modelInput').value;
+            const quality = document.getElementById('qualitySelect').value;
+            
+            if (!modelName.trim()) {
+                showStatus('Por favor ingresa un nombre de modelo', 'warning');
+                return;
+            }
+
+            const modelId = `${system}_${modelName}`;
+            showStatus('Obteniendo modelo...', 'warning');
+
+            try {
+                const startTime = Date.now();
+                const modelData = await apiManager.fetchModel(modelId, quality);
+                const loadTime = Date.now() - startTime;
+
+                if (modelData) {
+                    showModelInfo(modelData, loadTime);
+                    showStatus(`Modelo obtenido exitosamente en ${loadTime}ms`, 'success');
+                } else {
+                    showStatus('No se pudo obtener el modelo', 'error');
+                }
+            } catch (error) {
+                showStatus(`Error obteniendo modelo: ${error.message}`, 'error');
+            }
+        };
+
+        // Verificar estado de APIs
+        window.checkAPIs = async function() {
+            if (!apiManager) {
+                showStatus('APIManager no inicializado', 'error');
+                return;
+            }
+
+            showStatus('Verificando APIs...', 'warning');
+
+            try {
+                const apiStatus = await apiManager.checkAPIAvailability();
+                displayAPIStatus(apiStatus);
+                showStatus('Verificación de APIs completada', 'success');
+            } catch (error) {
+                showStatus(`Error verificando APIs: ${error.message}`, 'error');
+            }
+        };
+
+        // Limpiar cache
+        window.clearCache = async function() {
+            if (!apiManager) {
+                showStatus('APIManager no inicializado', 'error');
+                return;
+            }
+
+            try {
+                await apiManager.cleanupCache();
+                showStatus('Cache limpiado exitosamente', 'success');
+                await getCacheInfo();
+            } catch (error) {
+                showStatus(`Error limpiando cache: ${error.message}`, 'error');
+            }
+        };
+
+        // Obtener información del cache
+        window.getCacheInfo = async function() {
+            if (!apiManager || !apiManager.cache) {
+                showStatus('Cache no disponible', 'warning');
+                return;
+            }
+
+            try {
+                const transaction = apiManager.cache.transaction(['models'], 'readonly');
+                const store = transaction.objectStore('models');
+                
+                const countRequest = store.count();
+                countRequest.onsuccess = function() {
+                    const count = countRequest.result;
+                    
+                    const getAllRequest = store.getAll();
+                    getAllRequest.onsuccess = function() {
+                        const entries = getAllRequest.result;
+                        const totalSize = entries.reduce((sum, entry) => sum + (entry.size || 0), 0);
+                        
+                        displayCacheInfo(count, totalSize, entries);
+                    };
+                };
+            } catch (error) {
+                showStatus(`Error obteniendo info del cache: ${error.message}`, 'error');
+            }
+        };
+
+        // Mostrar estado
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        // Mostrar información del modelo
+        function showModelInfo(modelData, loadTime) {
+            const modelInfoDiv = document.getElementById('modelInfo');
+            const modelDetailsDiv = document.getElementById('modelDetails');
+            
+            modelDetailsDiv.innerHTML = `
+                <p><strong>ID:</strong> ${modelData.id}</p>
+                <p><strong>Calidad:</strong> ${modelData.quality}</p>
+                <p><strong>Fuente:</strong> ${modelData.source}</p>
+                <p><strong>URL del Modelo:</strong> <a href="${modelData.modelUrl}" target="_blank">${modelData.modelUrl}</a></p>
+                <p><strong>URL de Textura:</strong> <a href="${modelData.textureUrl}" target="_blank">${modelData.textureUrl}</a></p>
+                <p><strong>Tiempo de Carga:</strong> ${loadTime}ms</p>
+                <p><strong>Metadatos:</strong></p>
+                <ul>
+                    <li><strong>Nombre:</strong> ${modelData.metadata?.name || 'N/A'}</li>
+                    <li><strong>Sistema:</strong> ${modelData.metadata?.system || 'N/A'}</li>
+                    <li><strong>Descripción:</strong> ${modelData.metadata?.description || 'N/A'}</li>
+                </ul>
+            `;
+            
+            modelInfoDiv.style.display = 'block';
+        }
+
+        // Mostrar estado de APIs
+        function displayAPIStatus(apiStatus) {
+            const apiStatusDiv = document.getElementById('apiStatus');
+            
+            let html = '<h3 style="grid-column: 1 / -1;">Estado de APIs</h3>';
+            
+            for (const [endpoint, isOnline] of Object.entries(apiStatus)) {
+                const status = isOnline ? 'online' : 'offline';
+                const statusText = isOnline ? 'En línea' : 'Fuera de línea';
+                const endpointName = endpoint.includes('anatomymodels') ? 'Anatomy Models API' : 'Free Anatomy API';
+                
+                html += `
+                    <div class="api-card ${status}">
+                        <h4>${endpointName}</h4>
+                        <p>${statusText}</p>
+                        <small>${endpoint}</small>
+                    </div>
+                `;
+            }
+            
+            apiStatusDiv.innerHTML = html;
+        }
+
+        // Mostrar información del cache
+        function displayCacheInfo(count, totalSize, entries) {
+            const cacheInfoDiv = document.getElementById('cacheInfo');
+            const cacheDetailsDiv = document.getElementById('cacheDetails');
+            
+            const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+            const maxSizeInMB = (100).toFixed(0); // 100MB límite
+            
+            let html = `
+                <p><strong>Modelos en cache:</strong> ${count}</p>
+                <p><strong>Tamaño total:</strong> ${sizeInMB} MB / ${maxSizeInMB} MB</p>
+                <p><strong>Uso del cache:</strong> ${((totalSize / (100 * 1024 * 1024)) * 100).toFixed(1)}%</p>
+            `;
+            
+            if (entries.length > 0) {
+                html += '<h4>Modelos cacheados:</h4><ul>';
+                entries.forEach(entry => {
+                    const entrySize = ((entry.size || 0) / 1024).toFixed(1);
+                    const lastAccessed = new Date(entry.lastAccessed).toLocaleString();
+                    html += `<li>${entry.modelId} (${entry.quality}) - ${entrySize} KB - ${lastAccessed}</li>`;
+                });
+                html += '</ul>';
+            }
+            
+            cacheDetailsDiv.innerHTML = html;
+            cacheInfoDiv.style.display = 'block';
+        }
+
+        // Inicializar cuando se carga la página
+        document.addEventListener('DOMContentLoaded', initializeAPIManager);
+    </script>
+</body>
+</html>
