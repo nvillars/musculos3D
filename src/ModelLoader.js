@@ -10,8 +10,8 @@ class ModelLoader {
     constructor(options = {}) {
         this.options = {
             // Asset paths configuration
-            basePath: options.basePath || '/assets/models/',
-            dracoPath: options.dracoPath || '/assets/draco/',
+            basePath: options.basePath || './assets/models/',
+            dracoPath: options.dracoPath || './assets/draco/',
             
             // Loading configuration
             enableDraco: options.enableDraco !== false,
@@ -156,30 +156,40 @@ class ModelLoader {
      */
     loadModelOnce(fullPath, options, cacheKey) {
         return new Promise((resolve, reject) => {
+            console.log('🔄 ModelLoader: Starting to load model from:', fullPath);
+            
             const onProgress = (progressEvent) => {
                 if (progressEvent.lengthComputable) {
                     const progress = (progressEvent.loaded / progressEvent.total) * 100;
+                    console.log(`📊 ModelLoader: Loading progress: ${progress.toFixed(1)}%`);
                     this.notifyProgress(cacheKey, progress, progressEvent);
                 }
             };
             
             const onLoad = (gltf) => {
                 try {
+                    console.log('✅ ModelLoader: GLTF loaded successfully:', gltf);
+                    console.log('📊 GLTF scene children:', gltf.scene.children.length);
+                    
                     const model = this.processLoadedModel(gltf, options);
+                    console.log('✅ ModelLoader: Model processed successfully:', model);
                     this.notifyProgress(cacheKey, 100, { loaded: 1, total: 1 });
                     resolve(model);
                 } catch (error) {
+                    console.error('❌ ModelLoader: Error processing model:', error);
                     reject(new Error(`Failed to process loaded model: ${error.message}`));
                 }
             };
             
             const onError = (error) => {
+                console.error('❌ ModelLoader: Error loading model:', error);
                 const loadError = new Error(`Failed to load model from ${fullPath}: ${error.message || 'Unknown error'}`);
                 loadError.originalError = error;
                 reject(loadError);
             };
             
             // Start loading
+            console.log('🔄 ModelLoader: Calling GLTFLoader.load...');
             this.gltfLoader.load(fullPath, onLoad, onProgress, onError);
         });
     }
@@ -378,7 +388,10 @@ class ModelLoader {
             return assetPath;
         }
         
-        return this.options.basePath + assetPath;
+        // Add cache-busting parameter to force reload
+        const timestamp = Date.now();
+        const basePath = this.options.basePath + assetPath;
+        return basePath + (basePath.includes('?') ? '&' : '?') + `_t=${timestamp}`;
     }
     
     /**

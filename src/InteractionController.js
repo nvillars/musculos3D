@@ -12,23 +12,40 @@ export default class InteractionController {
 
   _onPointer(e){
     const obj = this.renderer.pick(e.clientX, e.clientY);
-    this.anatomy.highlight(obj);
-    if (obj){
-      this.ui?.showHud(`${obj.userData?.name || obj.name || 'Estructura'}`);
-    } else {
+    if (!obj) {
+      this.anatomy.clearSelection?.();
       this.ui?.hideHud();
+      return;
     }
+
+    // Prefer canonicalName -> selectStructure (string id)
+    const id = obj.userData?.canonicalName || obj.userData?.name || obj.name;
+    if (id && this.anatomy.selectStructure) {
+      this.anatomy.selectStructure(id);
+    } else {
+      this.anatomy.highlight(obj);
+    }
+
+    this.ui?.showHud(`${obj.userData?.originalName || obj.userData?.name || obj.name || 'Estructura'}`);
   }
 
   _onTouch(e){
     const t = e.touches[0];
     if (!t) return;
     const obj = this.renderer.pick(t.clientX, t.clientY);
-    this.anatomy.highlight(obj);
-    if (obj){
-      this.ui?.showHud(`${obj.userData?.name || obj.name || 'Estructura'}`);
-    } else {
+    if (!obj) {
+      this.anatomy.clearSelection?.();
       this.ui?.hideHud();
+      return;
     }
+
+    const id = obj.userData?.canonicalName || obj.userData?.name || obj.name;
+    if (id && this.anatomy.selectStructure) {
+      this.anatomy.selectStructure(id);
+    } else {
+      this.anatomy.highlight(obj);
+    }
+
+    this.ui?.showHud(`${obj.userData?.originalName || obj.userData?.name || obj.name || 'Estructura'}`);
   }
 }

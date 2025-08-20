@@ -9,9 +9,9 @@ const { GenerateSW } = require('workbox-webpack-plugin');
 const zlib = require('zlib');
 
 module.exports = (env, argv) => {
-  const isProduction = argv.mode === 'production';
+  const isProduction = argv && argv.mode === 'production';
   const shouldAnalyze = env && env.analyze;
-  
+
   return {
     entry: './src/index.js',
     output: {
@@ -26,7 +26,16 @@ module.exports = (env, argv) => {
       rules: [
         {
           test: /\.js$/,
-          exclude: /node_modules/,
+          exclude: [
+            /node_modules/,
+            /tests\//,
+            /server\//,
+            /scripts\//,
+            /deploy\//,
+            /tmp\//,
+            /\.test\.js$/,
+            /\.spec\.js$/
+          ],
           use: {
             loader: 'babel-loader',
             options: {
@@ -49,13 +58,31 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.(wasm|ktx2|basis)$/i, type: 'asset/resource'
+        },
+        // Exclude non-JavaScript files from processing
+        {
+          test: /\.(md|html|ps1|sh|zip|log|csv|json|txt|xml|yaml|yml|toml|ini|conf|config|dockerfile|gitignore|editorconfig|browserslist|babelrc|eslintrc|prettierrc|jestrc|webpackrc|rolluprc|viterc|tsconfig|jsconfig|package-lock|yarn-lock|npm-shrinkwrap)$/i,
+          type: 'asset/resource',
+          exclude: /node_modules/
+        },
+        // Exclude HTML files from processing to avoid __webpack_exports__ issues
+        {
+          test: /\.html$/,
+          type: 'asset/resource',
+          exclude: [/node_modules/, path.resolve(__dirname, 'public')]
         }
       ]
     },
     plugins: [
       new HtmlWebpackPlugin({
-        template: './public/index.html',
+        // Read the template content directly to avoid HtmlWebpackPlugin's
+        // template evaluation step which can attempt to execute embedded
+        // scripts and fail with __webpack_exports__ errors in some cases.
+        templateContent: require('fs').readFileSync(path.resolve(__dirname, 'public', 'index.html'), 'utf8'),
         title: 'Anatomical 3D Viewer',
+        inject: true,
+        scriptLoading: 'blocking',
+        templateParameters: {},
         minify: isProduction ? {
           removeComments: true,
           collapseWhitespace: true,
@@ -64,7 +91,7 @@ module.exports = (env, argv) => {
           removeEmptyAttributes: true,
           removeStyleLinkTypeAttributes: true,
           keepClosingSlash: true,
-          minifyJS: true,
+          minifyJS: false, // Disable JS minification to avoid __webpack_exports__ issues
           minifyCSS: true,
           minifyURLs: true
         } : false
@@ -258,6 +285,45 @@ module.exports = (env, argv) => {
       alias: {
         '@': path.resolve(__dirname, 'src'),
         '@assets': path.resolve(__dirname, 'assets')
+      },
+      fallback: {
+        // Node.js core modules - provide polyfills or set to false
+        'path': false,
+        'fs': false,
+        'util': false,
+        'zlib': false,
+        'crypto': false,
+        'stream': false,
+        'os': false,
+        'querystring': false,
+        'child_process': false,
+        'net': false,
+        'tls': false,
+        'assert': false,
+        'vm': false,
+        'tty': false,
+        'dns': false,
+        'worker_threads': false,
+        'async_hooks': false,
+        'inspector': false,
+        'readline': false,
+        'module': false,
+        'url': false,
+        'http': false,
+        'https': false,
+        'buffer': false,
+        'events': false,
+        'punycode': false,
+        'string_decoder': false,
+        'timers': false,
+        'constants': false,
+        'domain': false,
+        'cluster': false,
+        'repl': false,
+        'v8': false,
+        'perf_hooks': false,
+        'trace_events': false,
+        'wasi': false
       }
     },
     devServer: {

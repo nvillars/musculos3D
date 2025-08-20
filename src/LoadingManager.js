@@ -1,9 +1,9 @@
 // Loading Manager - Handles loading overlay and progress indicators
 export default class LoadingManager {
   constructor() {
-    this.overlay = document.getElementById('loading-overlay');
-    this.text = document.getElementById('loading-text');
-    this.progress = document.getElementById('loading-progress');
+  this.overlay = document.getElementById('loading-overlay') || document.getElementById('loading');
+  this.text = document.getElementById('loading-text') || document.getElementById('loading');
+  this.progress = document.getElementById('loading-progress');
     
     // Fallback progress bar for top of screen
     this.topBar = document.createElement('div');

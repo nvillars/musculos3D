@@ -1,5 +1,6 @@
 // AnatomyManager - Manages anatomical systems and structures
 import * as THREE from 'three';
+import HumanMusclesLoader from './integration/HumanMusclesLoader.js';
 
 export default class AnatomyManager {
   constructor(renderer) {
@@ -8,6 +9,7 @@ export default class AnatomyManager {
     this.structures = new Map();
     this.currentSystem = null;
     this.selectedStructure = null;
+  this.structuresIndex = null; // will hold { byId, groups, allMeshes }
     
     // Initialize with basic anatomical systems
     this.initializeSystems();
@@ -71,7 +73,83 @@ export default class AnatomyManager {
 
   async loadInitialScene() {
     try {
-      // Create a detailed human body model
+      console.log('🔄 Starting to load initial scene...');
+      
+      // Prepare muscles loader
+      this.musclesLoader = new HumanMusclesLoader();
+      
+      // Try to load the real GLB model first
+      if (this.musclesLoader) {
+        try {
+          console.log('🔄 Loading real GLB model...');
+          console.log('🔄 Model path: human_muscles.glb');
+          console.log('🔄 Timestamp:', new Date().toISOString());
+          console.log('🔄 Expected file size: ~22.5 MB');
+          
+          // Force cache clear to ensure we load the updated file
+          if (this.musclesLoader.modelLoader && this.musclesLoader.modelLoader.clearCache) {
+            this.musclesLoader.modelLoader.clearCache();
+            console.log('🔄 Cache cleared to force reload');
+          }
+          
+          const index = await this.musclesLoader.load('human_muscles.glb');
+          this.structuresIndex = index;
+          
+          console.log('✅ GLB model loaded successfully');
+          console.log('📊 Model stats:', {
+            totalMeshes: index.allMeshes.size,
+            byIdCount: index.byId.size,
+            groupsCount: index.groups.size
+          });
+          
+          // Log some mesh names to verify we have the full body
+          console.log('🔍 Sample mesh names:');
+          let count = 0;
+          for (const [id, mesh] of index.byId.entries()) {
+            if (count < 10) {
+              console.log(`  - ${id}: ${mesh.name}`);
+              count++;
+            } else {
+              break;
+            }
+          }
+
+          // Set the loaded model as root
+          this.renderer.setRootObject(index.model);
+
+          // Ensure the loaded model is centered and scaled properly
+          try {
+            this._fitAndCenterModel(index.model);
+            console.log('✅ Model fitted and centered');
+          } catch (e) {
+            console.warn('⚠️ fitAndCenterModel failed:', e && e.message);
+          }
+
+          // Register all structures from the loaded model
+          let registeredCount = 0;
+          for (const [id, mesh] of index.byId.entries()) {
+            this.addStructure(id, {
+              id,
+              name: mesh.userData?.originalName || id,
+              system: mesh.userData?.system || 'musculoskeletal',
+              description: mesh.userData?.originalName || id,
+              mesh
+            });
+            registeredCount++;
+          }
+          console.log(`✅ Registered ${registeredCount} structures from GLB model`);
+          
+          console.log('✅ Scene loaded successfully with real GLB model');
+          return;
+          
+        } catch (err) {
+          console.error('❌ Failed to load GLB model:', err);
+          console.log('🔄 Falling back to procedural model...');
+        }
+      }
+      
+      // Fallback to procedural model if GLB loading fails
+      console.log('🔄 Creating procedural fallback model...');
       const scene = new THREE.Group();
       
       // Create body parts with different geometries
@@ -88,14 +166,47 @@ export default class AnatomyManager {
         });
       });
       
-      // Add to renderer scene
-      this.renderer.scene.add(scene);
+      this.renderer.setRootObject(scene);
+      console.log('✅ Scene loaded successfully with procedural model');
       
-      console.log('✅ Scene loaded successfully');
     } catch (error) {
       console.error('❌ Error loading scene:', error);
       throw error;
     }
+  }
+
+  /**
+   * Explicit loader for the real muscular system model (glb)
+   */
+  async loadMuscularSystemReal(modelPath = null, options = {}) {
+    if (!this.musclesLoader) this.musclesLoader = new HumanMusclesLoader();
+    const index = await this.musclesLoader.load(modelPath, options);
+    this.structuresIndex = index;
+    // attach to scene
+    this.renderer.setRootObject(index.model);
+
+    // register structures
+    for (const [id, mesh] of index.byId.entries()) {
+      this.addStructure(id, {
+        id,
+        name: mesh.userData?.originalName || id,
+        system: mesh.userData?.system || 'musculoskeletal',
+        description: mesh.userData?.originalName || id,
+        mesh
+      });
+    }
+    return index;
+  }
+
+  /**
+   * Set maximum visible layer (0..n)
+   */
+  setVisibleLayer(maxLayer) {
+    if (!this.structuresIndex) return;
+    this.structuresIndex.allMeshes.forEach(m => {
+      const layer = typeof m.userData?.layer === 'number' ? m.userData.layer : 0;
+      m.visible = layer <= maxLayer;
+    });
   }
 
   createBodyParts() {
@@ -722,10 +833,78 @@ export default class AnatomyManager {
     });
     bodyGroup.add(rightHamstrings);
 
-    // Add the body group to the scene
-    this.renderer.scene.add(bodyGroup);
+  // Note: Do not add the bodyGroup directly to renderer.scene here. The
+  // caller will attach it via renderer.setRootObject which allows swapping
+  // the root with a loaded GLB later.
 
     return parts;
+  }
+
+  /**
+   * Scale and center a loaded model so it fits the scene origin.
+   * Mutates the model's scale and position.
+   */
+  _fitAndCenterModel(model) {
+    if (!model) return;
+    // Compute bounding box
+    const box = new THREE.Box3().setFromObject(model);
+    if (!box || box.isEmpty()) return;
+
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Normalize scale so the biggest dimension becomes ~1.6 units
+    const target = 1.6;
+    const maxDim = Math.max(size.x, size.y, size.z, 1e-6);
+    const scale = target / maxDim;
+    if (isFinite(scale) && Math.abs(scale - 1) > 1e-3) {
+      model.scale.setScalar(scale);
+    }
+
+    // Recompute bounding box after scaling
+    model.updateMatrixWorld(true);
+    const box2 = new THREE.Box3().setFromObject(model);
+    const center2 = box2.getCenter(new THREE.Vector3());
+
+    // Move model so its center is at origin
+    model.position.sub(center2);
+
+    // After centering, move model up so its minimum Y sits at y=0 (ground)
+    model.updateMatrixWorld(true);
+    const box3 = new THREE.Box3().setFromObject(model);
+    const min = box3.min;
+    if (isFinite(min.y)) {
+      model.position.y -= min.y;
+    }
+
+    // Ensure all children are visible
+    model.traverse((c) => { if (c.isMesh) c.visible = true; });
+    
+    // If we have a renderer with a camera, frame the model so it's visible
+    try {
+      const renderer = this.renderer;
+      const cam = renderer?.camera;
+      const controls = renderer?.controls;
+      if (cam) {
+        const sphere = new THREE.Sphere();
+        new THREE.Box3().setFromObject(model).getBoundingSphere(sphere);
+        const r = Math.max(0.001, sphere.radius);
+
+        // Position camera at an offset so the model fits comfortably
+        const distance = r * 2.8; // multiplier tuned for FOV ~50
+        cam.position.set(0, r * 0.8, distance);
+        cam.lookAt(0, 0, 0);
+        cam.updateProjectionMatrix();
+
+        // Update orbit controls target and recenter
+        if (controls) {
+          controls.target.set(0, 0, 0);
+          controls.update();
+        }
+      }
+    } catch (e) {
+      // non-fatal
+    }
   }
 
   addStructure(id, structure) {
